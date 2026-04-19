@@ -60,16 +60,8 @@
             @enderror
         </div>
 
-        {{-- Remember Me --}}
-        <div class="flex items-center">
-            <input
-                id="remember_me"
-                type="checkbox"
-                name="remember"
-                class="w-4 h-4 text-teal-600 border-slate-300 rounded focus:ring-teal-500"
-            >
-            <label for="remember_me" class="ml-2 text-sm text-slate-600">Remember me</label>
-        </div>
+        {{-- Remember Me (always enabled — hidden) --}}
+        <input type="hidden" name="remember" value="1">
 
         {{-- Submit --}}
         <button

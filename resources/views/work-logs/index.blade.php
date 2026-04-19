@@ -36,15 +36,17 @@
         date_to: '{{ request()->has("date_to") ? request("date_to") : date("Y-m-d") }}', 
         sub_kra_id: '{{ request("sub_kra_id") }}', 
         status_id: '{{ request("status_id") }}',
-        test_status: '{{ request("test_status") }}' 
+        test_status: '{{ request("test_status") }}',
+        application_id: '{{ request("application_id") }}',
+        module_id: '{{ request("module_id") }}'
     },
     get activeFilterCount() {
         let count = 0;
         if (this.filters.sub_kra_id) count++;
         if (this.filters.status_id) count++;
         if (this.filters.test_status) count++;
-        if (this.filters.date_from && this.filters.date_from !== '{{ date("Y-m-d") }}') count++;
-        if (this.filters.date_to && this.filters.date_to !== '{{ date("Y-m-d") }}') count++;
+        if (this.filters.application_id) count++;
+        if (this.filters.module_id) count++;
         return count;
     },
 
@@ -141,8 +143,22 @@
             ts.addOption({ value: '', text: 'None' });
             data.forEach(m => ts.addOption({ value: m.id, text: m.name }));
             ts.refreshOptions(false);
-            // Reset module selection when app changes
             this.formData.module_id = '';
+            ts.setValue('', true);
+        } catch(e) {}
+    },
+    async loadFilterModules(appId) {
+        const url = '/api/modules' + (appId ? '?application_id=' + appId : '');
+        try {
+            const res = await fetch(url);
+            const data = await res.json();
+            const ts = window._filterModuleTomSelect;
+            if (!ts) return;
+            ts.clearOptions();
+            ts.addOption({ value: '', text: 'All' });
+            data.forEach(m => ts.addOption({ value: m.id, text: m.name }));
+            ts.refreshOptions(false);
+            this.filters.module_id = '';
             ts.setValue('', true);
         } catch(e) {}
     }
@@ -154,12 +170,29 @@
             <h2 class="text-base font-bold text-slate-800">Daily Work Logs</h2>
             <p class="text-xs text-slate-500 mt-0.5">Track your daily KRA activities</p>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex flex-wrap items-center gap-2">
+            {{-- Date From --}}
+            <div class="flex items-center gap-1.5">
+                <label class="text-xs font-medium text-slate-500 whitespace-nowrap">From</label>
+                <input type="text" x-init="flatpickr($el, { dateFormat: 'Y-m-d' })" x-model="filters.date_from"
+                    class="w-32 px-2.5 py-2 text-xs border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-teal-500 cursor-pointer bg-white">
+            </div>
+            {{-- Date To --}}
+            <div class="flex items-center gap-1.5">
+                <label class="text-xs font-medium text-slate-500 whitespace-nowrap">To</label>
+                <input type="text" x-init="flatpickr($el, { dateFormat: 'Y-m-d' })" x-model="filters.date_to"
+                    class="w-32 px-2.5 py-2 text-xs border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-teal-500 cursor-pointer bg-white">
+            </div>
+            {{-- Apply date filter on Enter or blur is handled via applyFilters button --}}
+            <button @click="applyFilters()" class="px-3 py-2 bg-slate-700 text-white text-xs font-medium rounded-lg hover:bg-slate-800 transition-colors shadow-sm">
+                Go
+            </button>
+            <div class="w-px h-6 bg-slate-200"></div>
             <button @click="showFilters = !showFilters" class="px-3 py-2 bg-white border border-slate-200 text-slate-600 text-xs font-medium rounded-lg hover:bg-slate-50 flex items-center gap-1.5 transition-colors shadow-sm relative">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
                 </svg>
-                <span x-text="showFilters ? 'Hide Filters' : 'Show Filters'"></span>
+                <span x-text="showFilters ? 'Hide Filters' : 'More Filters'"></span>
                 <span x-show="activeFilterCount > 0" x-text="activeFilterCount" class="ml-1 px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-700 font-bold" style="display: none; font-size: 10px;"></span>
             </button>
             <button @click="openCreate()" class="px-3 py-2 bg-teal-600 text-white text-xs font-medium rounded-lg hover:bg-teal-700 flex items-center gap-1.5 shadow-sm transition-colors">
@@ -173,20 +206,44 @@
     <div x-show="showFilters" x-transition.opacity.duration.300ms class="bg-white rounded-lg border border-slate-200 p-4 mb-5 shadow-sm" style="display: none;">
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
             <div>
-                <label class="block text-xs font-medium text-slate-600 mb-1">Date From</label>
-                <input type="text" x-init="flatpickr($el, { dateFormat: 'Y-m-d' })" x-model="filters.date_from" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-teal-500 cursor-pointer bg-white">
-            </div>
-            <div>
-                <label class="block text-xs font-medium text-slate-600 mb-1">Date To</label>
-                <input type="text" x-init="flatpickr($el, { dateFormat: 'Y-m-d' })" x-model="filters.date_to" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-teal-500 cursor-pointer bg-white">
-            </div>
-            <div>
                 <label class="block text-xs font-medium text-slate-600 mb-1">Sub-KRA</label>
                 <div x-id="['filter-sub-kra-select']">
                     <select :id="$id('filter-sub-kra-select')" x-model="filters.sub_kra_id" x-init="setTimeout(() => { let ts = new TomSelect($el, { create: false, placeholder: 'All' }); $watch('filters.sub_kra_id', val => ts.setValue(val, true)); ts.on('change', val => filters.sub_kra_id = val); }, 100)" class="w-full" placeholder="All">
                         <option value="">All</option>
                         @foreach($subKras as $subKra)
                         <option value="{{ $subKra->id }}">{{ $subKra->kra->name }} — {{ $subKra->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-slate-600 mb-1">Application</label>
+                <div x-id="['filter-app-select']">
+                    <select :id="$id('filter-app-select')" x-model="filters.application_id"
+                        x-init="setTimeout(() => {
+                            let ts = new TomSelect($el, { create: false, placeholder: 'All' });
+                            $watch('filters.application_id', val => { ts.setValue(val, true); loadFilterModules(val); });
+                            ts.on('change', val => { filters.application_id = val; loadFilterModules(val); });
+                        }, 100)" class="w-full">
+                        <option value="">All</option>
+                        @foreach($applications as $app)
+                        <option value="{{ $app->id }}">{{ $app->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-slate-600 mb-1">Module</label>
+                <div x-id="['filter-module-select']">
+                    <select :id="$id('filter-module-select')" x-model="filters.module_id"
+                        x-init="setTimeout(() => {
+                            window._filterModuleTomSelect = new TomSelect($el, { create: false, placeholder: 'All' });
+                            $watch('filters.module_id', val => window._filterModuleTomSelect.setValue(val, true));
+                            window._filterModuleTomSelect.on('change', val => filters.module_id = val);
+                        }, 120)" class="w-full">
+                        <option value="">All</option>
+                        @foreach($modules as $mod)
+                        <option value="{{ $mod->id }}">{{ $mod->name }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -214,7 +271,7 @@
                     </select>
                 </div>
             </div>
-            <div class="flex gap-2">
+            <div class="flex gap-2 items-end">
                 <button @click="applyFilters()" class="flex-1 px-3 py-2 text-sm bg-slate-700 text-white rounded-lg hover:bg-slate-800 transition-colors">Apply</button>
                 <a href="{{ route('work-logs.index') }}" class="flex-1 text-center px-3 py-2 text-sm bg-slate-100 text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-200 transition-colors">Clear</a>
             </div>
@@ -326,14 +383,14 @@
                         
                         {{-- Tab 1: General Info --}}
                         <div x-show="activeTab === 'general'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0" style="display: none;">
-                            <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
+                            <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
                                 <div class="md:col-span-2">
                                     <label class="block text-xs font-medium text-slate-700 mb-1">Task Title <span class="text-red-500">*</span></label>
                                     <input type="text" x-model="formData.title" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none transition-all placeholder:text-slate-400" placeholder="e.g. Developed new reporting module">
                                 </div>
                                 <div class="md:col-span-2">
                                     <label class="block text-xs font-medium text-slate-700 mb-1">Description</label>
-                                    <textarea x-model="formData.description" rows="3" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none transition-all placeholder:text-slate-400" placeholder="Optional details..."></textarea>
+                                    <textarea x-model="formData.description" rows="1" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none transition-all placeholder:text-slate-400" placeholder="Optional details..."></textarea>
                                 </div>
                                 <div>
                                     <label class="block text-xs font-medium text-slate-700 mb-1">Sub-KRA <span class="text-red-500">*</span></label>
@@ -399,7 +456,7 @@
 
                         {{-- Tab 2: Status, Priority & Testing --}}
                         <div x-show="activeTab === 'status'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0" style="display: none;">
-                            <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
+                            <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
                                 <div>
                                     <label class="block text-xs font-medium text-slate-700 mb-1">Log Date <span class="text-red-500">*</span></label>
                                     <input type="text" x-init="flatpickr($el, { dateFormat: 'Y-m-d' })" x-model="formData.log_date" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none transition-all cursor-pointer bg-white">
@@ -451,7 +508,7 @@
 
                         {{-- Tab 3: Metrics & Duration --}}
                         <div x-show="activeTab === 'metrics'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0" style="display: none;">
-                            <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
+                            <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
                                 <div>
                                     <label class="block text-xs font-medium text-slate-700 mb-1">Total Duration (Hours)</label>
                                     <input type="number" step="0.01" x-model.number="formData.total_duration" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none transition-all">

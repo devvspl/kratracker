@@ -30,6 +30,8 @@ class WorkLogController extends Controller
         if ($request->filled('status_id'))  $query->where('status_id', $request->status_id);
         if ($request->filled('priority_id'))$query->where('priority_id', $request->priority_id);
         if ($request->filled('test_status'))$query->where('test_status', $request->test_status);
+        if ($request->filled('application_id')) $query->where('application_id', $request->application_id);
+        if ($request->filled('module_id'))      $query->where('module_id', $request->module_id);
 
         $workLogs    = $query->latest('log_date')->paginate(20);
         $subKras     = SubKra::with('kra')->where('is_active', true)->get();

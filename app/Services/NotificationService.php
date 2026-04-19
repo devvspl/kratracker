@@ -80,8 +80,8 @@ class NotificationService
         $appName = config('app.name', 'KRA Tracker');
         $appUrl  = config('app.url');
         $link    = isset($data['work_log_id'])
-            ? $appUrl . '/work-logs?date_from=' . now()->toDateString() . '&date_to=' . now()->toDateString()
-            : $appUrl . '/dashboard';
+            ? $appUrl . 'work-logs?date_from=' . now()->toDateString() . '&date_to=' . now()->toDateString()
+            : $appUrl . 'dashboard';
 
         $iconMap = [
             'task_overdue'   => '⚠️',

@@ -25,6 +25,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/api/notifications/{notification}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
     Route::post('/api/notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.read-all');
 
+    // Notifications full page
+    Route::get('/notifications', [NotificationController::class, 'all'])->name('notifications.all');
+    Route::post('/notifications/mark-all-read', [NotificationController::class, 'markAllReadWeb'])->name('notifications.mark-all-read');
+
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     

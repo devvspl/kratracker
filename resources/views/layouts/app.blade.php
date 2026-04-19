@@ -191,8 +191,9 @@
                                         </div>
                                     </template>
                                 </div>
-                                <div class="px-4 py-2.5 border-t border-slate-100 bg-slate-50">
-                                    <a href="{{ route('dashboard') }}" class="text-xs text-teal-600 hover:text-teal-700 font-medium">View Dashboard →</a>
+                                <div class="px-4 py-2.5 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
+                                    <a href="{{ route('notifications.all') }}" class="text-xs text-teal-600 hover:text-teal-700 font-medium">View all notifications →</a>
+                                    <a href="{{ route('dashboard') }}" class="text-xs text-slate-400 hover:text-slate-600">Dashboard</a>
                                 </div>
                             </div>
                         </div>
@@ -321,5 +322,96 @@
     </script>
 
     @stack('scripts')
+
+    {{-- Browser Push Notifications --}}
+    <script>
+    (function() {
+        // Only run for authenticated users
+        if (!('Notification' in window)) return;
+
+        const CSRF = document.querySelector('meta[name=csrf-token]')?.content;
+        let lastSeenId = parseInt(localStorage.getItem('kra_last_notif_id') || '0');
+        let permissionGranted = Notification.permission === 'granted';
+
+        // Request permission on first load
+        function requestPermission() {
+            if (Notification.permission === 'default') {
+                Notification.requestPermission().then(p => {
+                    permissionGranted = p === 'granted';
+                });
+            }
+        }
+
+        // Show a browser push notification
+        function pushNotify(title, body, icon) {
+            if (!permissionGranted) return;
+            try {
+                const n = new Notification(title, {
+                    body: body,
+                    icon: icon || '/favicon.ico',
+                    badge: '/favicon.ico',
+                    tag: 'kra-tracker',
+                    renotify: true,
+                });
+                n.onclick = function() {
+                    window.focus();
+                    window.location.href = '/notifications';
+                    n.close();
+                };
+                setTimeout(() => n.close(), 8000);
+            } catch(e) {}
+        }
+
+        // Poll for new notifications every 30 seconds
+        async function poll() {
+            try {
+                const r = await fetch('/api/notifications', {
+                    headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' }
+                });
+                if (!r.ok) return;
+                const data = await r.json();
+
+                // Find notifications newer than last seen
+                const newItems = (data.items || []).filter(n =>
+                    !n.is_read && n.id > lastSeenId
+                );
+
+                if (newItems.length > 0) {
+                    // Update last seen
+                    const maxId = Math.max(...newItems.map(n => n.id));
+                    lastSeenId = maxId;
+                    localStorage.setItem('kra_last_notif_id', maxId);
+
+                    // Show one push per new notification (max 3 to avoid spam)
+                    const toShow = newItems.slice(0, 3);
+                    const typeLabels = {
+                        task_overdue: '⚠️ Overdue Task',
+                        daily_reminder: '📋 Daily Reminder',
+                        pending_review: '🔔 Pending Review',
+                        task_created: '✅ Task Created',
+                        task_completed: '🎉 Task Completed',
+                        feedback_added: '💬 New Feedback',
+                    };
+
+                    toShow.forEach((n, i) => {
+                        setTimeout(() => {
+                            const title = typeLabels[n.type] || '🔔 KRA Tracker';
+                            pushNotify(title, n.message);
+                        }, i * 1500); // stagger by 1.5s each
+                    });
+                }
+            } catch(e) {}
+        }
+
+        // Kick off
+        requestPermission();
+
+        // Wait a moment then start polling
+        setTimeout(() => {
+            poll();
+            setInterval(poll, 30000); // every 30 seconds
+        }, 3000);
+    })();
+    </script>
 </body>
 </html>

@@ -7,7 +7,7 @@ use Illuminate\Http\Request;
 
 class NotificationController extends Controller
 {
-    /** Return unread count + latest 10 notifications */
+    /** API: unread count + latest 15 for bell dropdown */
     public function index()
     {
         $notifications = Notification::where('user_id', auth()->id())
@@ -19,6 +19,23 @@ class NotificationController extends Controller
             'unread' => $notifications->where('is_read', false)->count(),
             'items'  => $notifications,
         ]);
+    }
+
+    /** Full page: all notifications paginated */
+    public function all(Request $request)
+    {
+        $filter = $request->get('filter', 'all'); // all | unread
+
+        $query = Notification::where('user_id', auth()->id())->latest();
+
+        if ($filter === 'unread') {
+            $query->where('is_read', false);
+        }
+
+        $notifications = $query->paginate(20)->withQueryString();
+        $unreadCount   = Notification::where('user_id', auth()->id())->where('is_read', false)->count();
+
+        return view('notifications.index', compact('notifications', 'unreadCount', 'filter'));
     }
 
     /** Mark one as read */
@@ -36,5 +53,14 @@ class NotificationController extends Controller
             ->where('is_read', false)
             ->update(['is_read' => true]);
         return response()->json(['success' => true]);
+    }
+
+    /** Mark all read via web (form post, redirect back) */
+    public function markAllReadWeb()
+    {
+        Notification::where('user_id', auth()->id())
+            ->where('is_read', false)
+            ->update(['is_read' => true]);
+        return back()->with('status', 'All notifications marked as read.');
     }
 }

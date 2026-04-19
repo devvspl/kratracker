@@ -10,6 +10,7 @@ use App\Models\ApplicationModule;
 use App\Models\Priority;
 use App\Models\TaskStatus;
 use App\Models\PeriodTarget;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
@@ -101,6 +102,12 @@ class WorkLogController extends Controller
 
         $workLog->calculateScore();
 
+        app(NotificationService::class)->notify(
+            auth()->user(), 'task_created',
+            "Work log \"{$workLog->title}\" created successfully.",
+            ['work_log_id' => $workLog->id, 'title' => $workLog->title]
+        );
+
         return response()->json([
             'success' => true,
             'message' => 'Work log created successfully',
@@ -152,6 +159,16 @@ class WorkLogController extends Controller
         $workLog->update($validated);
         $workLog->calculateScore();
 
+        // Notify if marked completed
+        $newStatus = optional($workLog->fresh()->status)->name ?? '';
+        if (str_contains($newStatus, 'Completed')) {
+            app(NotificationService::class)->notify(
+                auth()->user(), 'task_completed',
+                "Great work! Task \"{$workLog->title}\" has been marked as Completed.",
+                ['work_log_id' => $workLog->id, 'title' => $workLog->title]
+            );
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Work log updated successfully',
@@ -191,6 +208,16 @@ class WorkLogController extends Controller
             'comment'       => $validated['comment'],
             'rating'        => $validated['rating'],
         ]);
+
+        // Notify the work log owner (if feedback is from someone else)
+        if ($workLog->user_id !== auth()->id()) {
+            app(NotificationService::class)->notify(
+                $workLog->user,
+                'feedback_added',
+                auth()->user()->name . " added a {$validated['feedback_type']} feedback (rating: {$validated['rating']}/5) on your task \"{$workLog->title}\".",
+                ['work_log_id' => $workLog->id, 'title' => $workLog->title, 'rating' => $validated['rating']]
+            );
+        }
 
         return response()->json([
             'success' => true,

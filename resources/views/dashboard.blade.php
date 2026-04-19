@@ -64,8 +64,8 @@
     {{-- ══════════════════════════════════════════════════════ --}}
     <div x-show="activeTab === 'overview'" x-transition.opacity.duration.200ms style="display:none;">
 
-    {{-- Row 1: KRA Score card + 3 stat cards --}}
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+    {{-- Row 1: KRA Score + all 4 stat cards in one row --}}
+    <div class="grid grid-cols-2 lg:grid-cols-6 gap-4 mb-4">
 
         {{-- KRA Score — spans 2 cols --}}
         <div class="col-span-2 bg-gradient-to-br from-teal-500 to-teal-700 rounded-xl p-5 text-white shadow-sm">
@@ -116,64 +116,159 @@
 
         {{-- Tasks Logged --}}
         <div class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
-            <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center mb-3">
-                <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-                </svg>
+            <div class="flex items-center justify-between mb-3">
+                <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                    </svg>
+                </div>
+                <span class="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full font-medium">Total</span>
             </div>
             <p class="text-2xl font-bold text-slate-800">{{ $tasksLogged }}</p>
             <p class="text-xs text-slate-500 mt-0.5">Tasks Logged</p>
+            <div class="mt-3 flex items-center gap-1.5 text-xs text-slate-400">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                In selected period
+            </div>
         </div>
 
         {{-- Completed --}}
         <div class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
-            <div class="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center mb-3">
-                <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                </svg>
+            <div class="flex items-center justify-between mb-3">
+                <div class="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                    <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+                @if($tasksLogged > 0)
+                <span class="text-xs font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
+                    {{ round(($tasksCompleted / $tasksLogged) * 100) }}%
+                </span>
+                @endif
             </div>
             <p class="text-2xl font-bold text-slate-800">{{ $tasksCompleted }}</p>
             <p class="text-xs text-slate-500 mt-0.5">Completed</p>
+            <div class="mt-3 w-full bg-slate-100 rounded-full h-1">
+                <div class="bg-green-400 h-1 rounded-full" style="width:{{ $tasksLogged > 0 ? round(($tasksCompleted / $tasksLogged) * 100) : 0 }}%"></div>
+            </div>
+            <div class="mt-1.5 flex items-center gap-1.5 text-xs text-slate-400">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                Of total logged
+            </div>
         </div>
-    </div>
 
-    {{-- Row 2: Pending + Hours + Score legend pills --}}
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
         {{-- Pending --}}
         <div class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
-            <div class="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center mb-3">
-                <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                </svg>
+            <div class="flex items-center justify-between mb-3">
+                <div class="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center">
+                    <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+                @if($tasksLogged > 0)
+                <span class="text-xs font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
+                    {{ round(($pendingTasks / $tasksLogged) * 100) }}%
+                </span>
+                @endif
             </div>
             <p class="text-2xl font-bold text-slate-800">{{ $pendingTasks }}</p>
             <p class="text-xs text-slate-500 mt-0.5">Pending / In Progress</p>
+            <div class="mt-3 w-full bg-slate-100 rounded-full h-1">
+                <div class="bg-amber-400 h-1 rounded-full" style="width:{{ $tasksLogged > 0 ? round(($pendingTasks / $tasksLogged) * 100) : 0 }}%"></div>
+            </div>
+            <div class="mt-1.5 flex items-center gap-1.5 text-xs text-slate-400">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                Awaiting completion
+            </div>
         </div>
 
         {{-- Hours --}}
         <div class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
-            <div class="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center mb-3">
-                <svg class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                </svg>
+            <div class="flex items-center justify-between mb-3">
+                <div class="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                    <svg class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+                @if($tasksLogged > 0)
+                <span class="text-xs font-medium text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">
+                    {{ number_format($totalHours / $tasksLogged, 1) }}h/task
+                </span>
+                @endif
             </div>
             <p class="text-2xl font-bold text-slate-800">{{ number_format($totalHours, 1) }}</p>
             <p class="text-xs text-slate-500 mt-0.5">Hours Logged</p>
+            <div class="mt-3 flex items-center gap-1.5 text-xs text-slate-400">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+                Actual duration total
+            </div>
         </div>
 
-        {{-- Score legend — spans 2 cols --}}
-        <div class="col-span-2 bg-slate-50 border border-slate-200 rounded-xl p-4 shadow-sm">
-            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Score Factors</p>
-            <div class="flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-slate-600">
-                <span><span class="inline-block w-2 h-2 rounded-full bg-teal-500 mr-1"></span>Completed ×1.0 &nbsp;·&nbsp; In Progress ×0.7 &nbsp;·&nbsp; On Hold ×0.4 &nbsp;·&nbsp; Not Started ×0</span>
-                <span><span class="inline-block w-2 h-2 rounded-full bg-red-400 mr-1"></span>High Priority +10 &nbsp;·&nbsp; Medium +5</span>
-                <span><span class="inline-block w-2 h-2 rounded-full bg-indigo-400 mr-1"></span>Test Passed +5 &nbsp;·&nbsp; Failed −10</span>
-                <span><span class="inline-block w-2 h-2 rounded-full bg-purple-400 mr-1"></span>On-time +5 &nbsp;·&nbsp; >20% over −5</span>
-                <span><span class="inline-block w-2 h-2 rounded-full bg-amber-400 mr-1"></span>Feedback ≥4.5 +10 &nbsp;·&nbsp; ≥3.5 +5 &nbsp;·&nbsp; <2.5 −5 &nbsp;·&nbsp; Max 100</span>
+    </div>
+
+    {{-- Row 2: Score Factors full width --}}
+    <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm mb-5">
+        <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Score Factors</p>
+        <div class="grid grid-cols-1 divide-y divide-slate-100">
+            <div class="flex items-center gap-3 py-2">
+                <span class="w-2 h-2 rounded-full bg-teal-500 shrink-0"></span>
+                <span class="text-xs font-medium text-slate-600 w-28 shrink-0">Task Status</span>
+                <div class="flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500">
+                    <span>Completed <strong class="text-slate-700">×1.0</strong></span>
+                    <span class="text-slate-300">|</span>
+                    <span>In Progress <strong class="text-slate-700">×0.7</strong></span>
+                    <span class="text-slate-300">|</span>
+                    <span>On Hold <strong class="text-slate-700">×0.4</strong></span>
+                    <span class="text-slate-300">|</span>
+                    <span>Not Started <strong class="text-slate-700">×0</strong></span>
+                </div>
+            </div>
+            <div class="flex items-center gap-3 py-2">
+                <span class="w-2 h-2 rounded-full bg-red-400 shrink-0"></span>
+                <span class="text-xs font-medium text-slate-600 w-28 shrink-0">Priority</span>
+                <div class="flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500">
+                    <span>High <strong class="text-green-600">+10 pts</strong></span>
+                    <span class="text-slate-300">|</span>
+                    <span>Medium <strong class="text-green-600">+5 pts</strong></span>
+                    <span class="text-slate-300">|</span>
+                    <span>Low <strong class="text-slate-400">+0</strong></span>
+                </div>
+            </div>
+            <div class="flex items-center gap-3 py-2">
+                <span class="w-2 h-2 rounded-full bg-indigo-400 shrink-0"></span>
+                <span class="text-xs font-medium text-slate-600 w-28 shrink-0">Testing</span>
+                <div class="flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500">
+                    <span>Passed <strong class="text-green-600">+5 pts</strong></span>
+                    <span class="text-slate-300">|</span>
+                    <span>Failed <strong class="text-red-500">−10 pts</strong></span>
+                    <span class="text-slate-300">|</span>
+                    <span>Skipped / Pending <strong class="text-slate-400">+0</strong></span>
+                </div>
+            </div>
+            <div class="flex items-center gap-3 py-2">
+                <span class="w-2 h-2 rounded-full bg-purple-400 shrink-0"></span>
+                <span class="text-xs font-medium text-slate-600 w-28 shrink-0">Duration</span>
+                <div class="flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500">
+                    <span>On-time or early <strong class="text-green-600">+5 pts</strong></span>
+                    <span class="text-slate-300">|</span>
+                    <span>&gt;20% over estimate <strong class="text-red-500">−5 pts</strong></span>
+                </div>
+            </div>
+            <div class="flex items-center gap-3 py-2">
+                <span class="w-2 h-2 rounded-full bg-amber-400 shrink-0"></span>
+                <span class="text-xs font-medium text-slate-600 w-28 shrink-0">Feedback</span>
+                <div class="flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500">
+                    <span>≥4.5 <strong class="text-green-600">+10 pts</strong></span>
+                    <span class="text-slate-300">|</span>
+                    <span>≥3.5 <strong class="text-green-600">+5 pts</strong></span>
+                    <span class="text-slate-300">|</span>
+                    <span>&lt;2.5 <strong class="text-red-500">−5 pts</strong></span>
+                    <span class="text-slate-300">|</span>
+                    <span class="text-slate-400">Max total: 100</span>
+                </div>
             </div>
         </div>
     </div>
-
     {{-- Charts Row --}}
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-5">
         {{-- Sub-KRA Score Chart --}}

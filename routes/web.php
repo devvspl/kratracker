@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\WorkLogController;
 use App\Http\Controllers\ExportController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Masters\KraController;
 use App\Http\Controllers\Masters\SubKraController;
 use App\Http\Controllers\Masters\LogicController;
@@ -12,12 +13,18 @@ use App\Http\Controllers\Masters\TaskStatusController;
 use App\Http\Controllers\Masters\PriorityController;
 use App\Http\Controllers\Masters\ApplicationController;
 use App\Http\Controllers\Masters\ApplicationModuleController;
+use App\Http\Controllers\Masters\UserController;
 
 Route::get('/', function () {
     return redirect()->route('dashboard');
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {
+    // Notifications API
+    Route::get('/api/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::post('/api/notifications/{notification}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
+    Route::post('/api/notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.read-all');
+
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     
@@ -54,6 +61,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::resource('priorities', PriorityController::class);
         Route::resource('applications', ApplicationController::class);
         Route::resource('application-modules', ApplicationModuleController::class);
+        Route::resource('users', UserController::class)->only(['index', 'store', 'update', 'destroy']);
     });
 });
 

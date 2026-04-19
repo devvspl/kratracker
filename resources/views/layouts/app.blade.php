@@ -109,6 +109,11 @@
                                         <svg class="w-4 h-4 mr-2 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"/></svg>
                                         Modules
                                     </a>
+                                    <div class="my-1 border-t border-slate-100"></div>
+                                    <a href="{{ route('masters.users.index') }}" class="flex items-center px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 {{ request()->routeIs('masters.users.*') ? 'bg-teal-50 text-teal-700' : '' }}">
+                                        <svg class="w-4 h-4 mr-2 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                                        Users
+                                    </a>
                                 </div>
                             </div>
                             @endrole
@@ -118,12 +123,79 @@
                     <!-- Right Side: Notifications & User -->
                     <div class="flex items-center space-x-3">
                         <!-- Notification Bell -->
-                        <button class="relative p-2 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-all">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
-                            </svg>
-                            <span class="absolute top-1 right-1 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white"></span>
-                        </button>
+                        <div class="relative" x-data="{
+                            open: false,
+                            unread: 0,
+                            items: [],
+                            async load() {
+                                try {
+                                    const r = await fetch('/api/notifications');
+                                    const d = await r.json();
+                                    this.unread = d.unread;
+                                    this.items  = d.items;
+                                } catch(e) {}
+                            },
+                            async markRead(id) {
+                                await fetch('/api/notifications/' + id + '/read', { method: 'POST', headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content } });
+                                this.items = this.items.map(i => i.id === id ? {...i, is_read: true} : i);
+                                this.unread = this.items.filter(i => !i.is_read).length;
+                            },
+                            async markAll() {
+                                await fetch('/api/notifications/read-all', { method: 'POST', headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content } });
+                                this.items = this.items.map(i => ({...i, is_read: true}));
+                                this.unread = 0;
+                            },
+                            typeIcon(type) {
+                                const map = { task_overdue: '⚠️', daily_reminder: '📋', pending_review: '🔔', task_created: '✅', task_completed: '🎉', feedback_added: '💬' };
+                                return map[type] || '🔔';
+                            },
+                            timeAgo(dt) {
+                                const s = Math.floor((new Date() - new Date(dt)) / 1000);
+                                if (s < 60) return s + 's ago';
+                                if (s < 3600) return Math.floor(s/60) + 'm ago';
+                                if (s < 86400) return Math.floor(s/3600) + 'h ago';
+                                return Math.floor(s/86400) + 'd ago';
+                            }
+                        }" x-init="load(); setInterval(() => load(), 60000)">
+                            <button @click="open = !open; if(open) load()"
+                                class="relative p-2 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-all">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                                </svg>
+                                <span x-show="unread > 0" x-text="unread > 9 ? '9+' : unread"
+                                    class="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none" style="display:none;"></span>
+                            </button>
+
+                            <!-- Dropdown -->
+                            <div x-show="open" @click.away="open = false" x-cloak
+                                class="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden z-50">
+                                <div class="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+                                    <h4 class="text-sm font-bold text-slate-800">Notifications</h4>
+                                    <button @click="markAll()" x-show="unread > 0"
+                                        class="text-xs text-teal-600 hover:text-teal-700 font-medium">Mark all read</button>
+                                </div>
+                                <div class="max-h-80 overflow-y-auto divide-y divide-slate-50">
+                                    <template x-if="items.length === 0">
+                                        <div class="px-4 py-8 text-center text-xs text-slate-400">No notifications yet.</div>
+                                    </template>
+                                    <template x-for="n in items" :key="n.id">
+                                        <div @click="markRead(n.id)"
+                                            :class="n.is_read ? 'bg-white' : 'bg-teal-50/50'"
+                                            class="flex items-start gap-3 px-4 py-3 hover:bg-slate-50 cursor-pointer transition-colors">
+                                            <span class="text-lg leading-none mt-0.5" x-text="typeIcon(n.type)"></span>
+                                            <div class="flex-1 min-w-0">
+                                                <p class="text-xs text-slate-700 leading-relaxed" x-text="n.message"></p>
+                                                <p class="text-xs text-slate-400 mt-1" x-text="timeAgo(n.created_at)"></p>
+                                            </div>
+                                            <span x-show="!n.is_read" class="w-2 h-2 rounded-full bg-teal-500 shrink-0 mt-1.5"></span>
+                                        </div>
+                                    </template>
+                                </div>
+                                <div class="px-4 py-2.5 border-t border-slate-100 bg-slate-50">
+                                    <a href="{{ route('dashboard') }}" class="text-xs text-teal-600 hover:text-teal-700 font-medium">View Dashboard →</a>
+                                </div>
+                            </div>
+                        </div>
                         
                         <!-- User Avatar Dropdown -->
                         <div class="relative" x-data="{ open: false }">
@@ -212,6 +284,7 @@
                             <a href="{{ route('masters.priorities.index') }}" class="block pl-10 pr-4 py-2 text-sm font-medium {{ request()->routeIs('masters.priorities.*') ? 'text-teal-700 bg-teal-50 border-l-2 border-teal-500' : 'text-slate-600 hover:text-slate-900 border-l-2 border-transparent' }}">Priorities</a>
                             <a href="{{ route('masters.applications.index') }}" class="block pl-10 pr-4 py-2 text-sm font-medium {{ request()->routeIs('masters.applications.*') ? 'text-teal-700 bg-teal-50 border-l-2 border-teal-500' : 'text-slate-600 hover:text-slate-900 border-l-2 border-transparent' }}">Applications</a>
                             <a href="{{ route('masters.application-modules.index') }}" class="block pl-10 pr-4 py-2 text-sm font-medium {{ request()->routeIs('masters.application-modules.*') ? 'text-teal-700 bg-teal-50 border-l-2 border-teal-500' : 'text-slate-600 hover:text-slate-900 border-l-2 border-transparent' }}">Modules</a>
+                            <a href="{{ route('masters.users.index') }}" class="block pl-10 pr-4 py-2 text-sm font-medium {{ request()->routeIs('masters.users.*') ? 'text-teal-700 bg-teal-50 border-l-2 border-teal-500' : 'text-slate-600 hover:text-slate-900 border-l-2 border-transparent' }}">Users</a>
                         </div>
                     </div>
                     @endrole

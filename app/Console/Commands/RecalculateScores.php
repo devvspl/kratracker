@@ -14,7 +14,7 @@ class RecalculateScores extends Command
     {
         $this->info('Recalculating scores for all work logs...');
         
-        $workLogs = WorkLog::with('subKra.logic')->get();
+        $workLogs = WorkLog::with(['subKra.logic', 'status', 'priority', 'feedbacks'])->get();
         $bar = $this->output->createProgressBar($workLogs->count());
         $bar->start();
 

@@ -63,22 +63,73 @@ class WorkLog extends Model
     public function calculateScore()
     {
         $subKra = $this->subKra;
-        $logic = $subKra->logic;
-        
+        $logic  = $subKra->logic;
+
+        // ── 1. Base score from KRA logic ──────────────────────────────────────
         if ($logic->scoring_type === 'proportional') {
-            // Logic 1: score = (achievement/target) * 100, capped at 100
-            $score = $this->target_value_snapshot > 0 
+            $base = $this->target_value_snapshot > 0
                 ? min(($this->achievement_value / $this->target_value_snapshot) * 100, 100)
                 : 0;
         } else {
-            // Logic 3: binary - 100 if achievement >= target, else 0
-            $score = $this->achievement_value >= $this->target_value_snapshot ? 100 : 0;
+            // binary
+            $base = $this->achievement_value >= $this->target_value_snapshot ? 100 : 0;
         }
-        
-        $this->score_calculated = round($score, 2);
-        $this->logic_applied = $logic->name;
+
+        // ── 2. Status multiplier ──────────────────────────────────────────────
+        $statusName = optional($this->status)->name ?? '';
+        $statusMultiplier = match(true) {
+            str_contains($statusName, 'Completed')   => 1.0,
+            str_contains($statusName, 'In Progress') => 0.7,
+            str_contains($statusName, 'On Hold')     => 0.4,
+            default                                  => 0.0, // Not Started, Cancelled
+        };
+        $score = $base * $statusMultiplier;
+
+        // ── 3. Priority bonus (only if task has meaningful progress) ──────────
+        if ($statusMultiplier > 0) {
+            $priorityLevel = optional($this->priority)->level ?? 0;
+            $score += match((int) $priorityLevel) {
+                3 => 10,  // High
+                2 => 5,   // Medium
+                default => 0,
+            };
+
+            // ── 4. Test status bonus ──────────────────────────────────────────
+            $score += match($this->test_status) {
+                'Passed'  => 5,
+                'Failed'  => -10,
+                default   => 0,
+            };
+
+            // ── 5. Duration efficiency bonus ─────────────────────────────────
+            $total  = (float) ($this->total_duration  ?? 0);
+            $actual = (float) ($this->actual_duration ?? 0);
+            if ($total > 0 && $actual > 0) {
+                if ($actual <= $total) {
+                    $score += 5;  // finished on time or early
+                } elseif ($actual > $total * 1.2) {
+                    $score -= 5;  // took >20% longer than planned
+                }
+            }
+
+            // ── 6. Feedback rating bonus ──────────────────────────────────────
+            $feedbacks = $this->feedbacks;
+            if ($feedbacks->isNotEmpty()) {
+                $avgRating = $feedbacks->avg('rating');
+                $score += match(true) {
+                    $avgRating >= 4.5 => 10,
+                    $avgRating >= 3.5 => 5,
+                    $avgRating >= 2.5 => 0,
+                    default           => -5,
+                };
+            }
+        }
+
+        // ── 7. Clamp 0–100 ────────────────────────────────────────────────────
+        $this->score_calculated = round(max(0, min(100, $score)), 2);
+        $this->logic_applied    = $logic->name;
         $this->save();
-        
+
         return $this->score_calculated;
     }
 

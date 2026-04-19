@@ -187,6 +187,9 @@
             <button @click="applyFilters()" class="px-3 py-2 bg-slate-700 text-white text-xs font-medium rounded-lg hover:bg-slate-800 transition-colors shadow-sm">
                 Go
             </button>
+            <a href="{{ route('work-logs.index') }}" class="px-3 py-2 bg-white border border-slate-300 text-slate-600 text-xs font-medium rounded-lg hover:bg-slate-50 transition-colors shadow-sm">
+                Clear
+            </a>
             <div class="w-px h-6 bg-slate-200"></div>
             <button @click="showFilters = !showFilters" class="px-3 py-2 bg-white border border-slate-200 text-slate-600 text-xs font-medium rounded-lg hover:bg-slate-50 flex items-center gap-1.5 transition-colors shadow-sm relative">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

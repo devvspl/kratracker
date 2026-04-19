@@ -13,6 +13,11 @@ class Application extends Model
         'is_active',
     ];
 
+    public function modules()
+    {
+        return $this->hasMany(ApplicationModule::class)->where('is_active', true)->orderBy('name');
+    }
+
     protected $casts = [
         'is_active' => 'boolean',
     ];

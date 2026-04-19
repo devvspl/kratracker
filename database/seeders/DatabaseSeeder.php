@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
             PrioritySeeder::class,
             NotificationConfigSeeder::class,
             RoleSeeder::class,
+            ApplicationModuleSeeder::class,
         ]);
 
         // Create a test admin user

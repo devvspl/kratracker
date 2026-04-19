@@ -22,7 +22,7 @@
     feedbacks: [],
     feedbackForm: { feedback_type: 'self', comment: '', rating: 5 },
     formData: {
-        sub_kra_id: '', application_id: '', title: '', description: '',
+        sub_kra_id: '', application_id: '', module_id: '', title: '', description: '',
         log_date: new Date().toISOString().split('T')[0],
         priority_id: '{{ $defaultPriorityId }}', status_id: '', achievement_value: 1,
         total_duration: 0, actual_duration: 0,
@@ -51,7 +51,7 @@
     openCreate() {
         this.modalMode = 'create'; this.selectedId = null;
         this.activeTab = 'general';
-        this.formData = { sub_kra_id:'', application_id:'', title:'', description:'', log_date: new Date().toISOString().split('T')[0], priority_id:'{{ $defaultPriorityId }}', status_id:'', achievement_value:1, total_duration:0, actual_duration:0, test_status:'', testing_details:'', remark:'' };
+        this.formData = { sub_kra_id:'', application_id:'', module_id:'', title:'', description:'', log_date: new Date().toISOString().split('T')[0], priority_id:'{{ $defaultPriorityId }}', status_id:'', achievement_value:1, total_duration:0, actual_duration:0, test_status:'', testing_details:'', remark:'' };
         this.showModal = true;
     },
     async openEdit(id) {
@@ -62,7 +62,7 @@
             const data = await res.json();
             if (data.success) {
                 const d = data.data;
-                this.formData = { sub_kra_id: d.sub_kra_id, application_id: d.application_id||'', title: d.title, description: d.description||'', log_date: d.log_date, priority_id: d.priority_id, status_id: d.status_id, achievement_value: d.achievement_value || 1, total_duration: d.total_duration||0, actual_duration: d.actual_duration||0, test_status: d.test_status||'', testing_details: d.testing_details||'', remark: d.remark||'' };
+                this.formData = { sub_kra_id: d.sub_kra_id, application_id: d.application_id||'', module_id: d.module_id||'', title: d.title, description: d.description||'', log_date: d.log_date, priority_id: d.priority_id, status_id: d.status_id, achievement_value: d.achievement_value || 1, total_duration: d.total_duration||0, actual_duration: d.actual_duration||0, test_status: d.test_status||'', testing_details: d.testing_details||'', remark: d.remark||'' };
                 this.showModal = true;
             }
         } catch(e) { window.showToast('Error loading record', 'error'); }
@@ -129,6 +129,22 @@
         const params = new URLSearchParams();
         Object.keys(this.filters).forEach(k => { if (this.filters[k]) params.append(k, this.filters[k]); });
         window.location.href = '{{ route("work-logs.index") }}?' + params.toString();
+    },
+    async loadModules(appId) {
+        const url = '/api/modules' + (appId ? '?application_id=' + appId : '');
+        try {
+            const res = await fetch(url);
+            const data = await res.json();
+            const ts = window._moduleTomSelectInstance;
+            if (!ts) return;
+            ts.clearOptions();
+            ts.addOption({ value: '', text: 'None' });
+            data.forEach(m => ts.addOption({ value: m.id, text: m.name }));
+            ts.refreshOptions(false);
+            // Reset module selection when app changes
+            this.formData.module_id = '';
+            ts.setValue('', true);
+        } catch(e) {}
     }
 }">
 
@@ -331,12 +347,49 @@
                                     </div>
                                 </div>
                                 <div>
-                                    <label class="block text-xs font-medium text-slate-700 mb-1">Application / Module</label>
+                                    <label class="block text-xs font-medium text-slate-700 mb-1">Application</label>
                                     <div x-id="['app-select']">
-                                        <select :id="$id('app-select')" x-model="formData.application_id" x-init="setTimeout(() => { let ts = new TomSelect($el, { create: false, placeholder: 'None' }); $watch('formData.application_id', val => ts.setValue(val, true)); ts.on('change', val => formData.application_id = val); }, 100)" class="w-full" placeholder="None">
+                                        <select :id="$id('app-select')" x-model="formData.application_id"
+                                            x-init="setTimeout(() => {
+                                                let ts = new TomSelect($el, { create: false, placeholder: 'None' });
+                                                $watch('formData.application_id', val => { ts.setValue(val, true); loadModules(val); });
+                                                ts.on('change', val => { formData.application_id = val; loadModules(val); });
+                                            }, 100)" class="w-full" placeholder="None">
                                             <option value="">None</option>
                                             @foreach($applications as $app)
                                                 <option value="{{ $app->id }}">{{ $app->name }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-slate-700 mb-1">Module</label>
+                                    <div x-id="['module-select']">
+                                        <select :id="$id('module-select')" x-model="formData.module_id"
+                                            x-init="setTimeout(() => {
+                                                const self = $data;
+                                                window._moduleTomSelectInstance = new TomSelect($el, {
+                                                    create: async function(input, callback) {
+                                                        try {
+                                                            const res = await fetch('/api/modules', {
+                                                                method: 'POST',
+                                                                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content },
+                                                                body: JSON.stringify({ name: input, application_id: self.formData.application_id || null })
+                                                            });
+                                                            const data = await res.json();
+                                                            if (data.success) { callback({ value: String(data.data.id), text: data.data.name }); }
+                                                            else { callback(); }
+                                                        } catch(e) { callback(); }
+                                                    },
+                                                    placeholder: 'Select or type module...'
+                                                });
+                                                $watch('formData.module_id', val => window._moduleTomSelectInstance.setValue(val, true));
+                                                window._moduleTomSelectInstance.on('change', val => formData.module_id = val);
+                                            }, 150)"
+                                            class="w-full" placeholder="Select or type module...">
+                                            <option value="">None</option>
+                                            @foreach($modules as $mod)
+                                                <option value="{{ $mod->id }}">{{ $mod->name }}</option>
                                             @endforeach
                                         </select>
                                     </div>

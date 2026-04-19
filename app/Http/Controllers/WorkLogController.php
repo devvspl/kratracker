@@ -6,6 +6,7 @@ use App\Models\WorkLog;
 use App\Models\WorkLogFeedback;
 use App\Models\SubKra;
 use App\Models\Application;
+use App\Models\ApplicationModule;
 use App\Models\Priority;
 use App\Models\TaskStatus;
 use App\Models\PeriodTarget;
@@ -35,8 +36,9 @@ class WorkLogController extends Controller
         $applications= Application::where('is_active', true)->get();
         $priorities  = Priority::where('is_active', true)->orderBy('level', 'desc')->get();
         $statuses    = TaskStatus::where('is_active', true)->orderBy('sort_order')->get();
+        $modules     = ApplicationModule::where('is_active', true)->orderBy('name')->get();
 
-        return view('work-logs.index', compact('workLogs', 'subKras', 'applications', 'priorities', 'statuses'));
+        return view('work-logs.index', compact('workLogs', 'subKras', 'applications', 'priorities', 'statuses', 'modules'));
     }
 
     public function store(Request $request)
@@ -44,6 +46,7 @@ class WorkLogController extends Controller
         $validated = $request->validate([
             'sub_kra_id'       => 'required|exists:sub_kras,id',
             'application_id'   => 'nullable|exists:applications,id',
+            'module_id'        => 'nullable|exists:application_modules,id',
             'title'            => 'required|string|max:255',
             'description'      => 'nullable|string',
             'log_date'         => 'required|date',
@@ -78,6 +81,7 @@ class WorkLogController extends Controller
             'user_id'              => auth()->id(),
             'sub_kra_id'           => $validated['sub_kra_id'],
             'application_id'       => $validated['application_id'] ?? null,
+            'module_id'            => $validated['module_id'] ?? null,
             'title'                => $validated['title'],
             'description'          => $validated['description'] ?? null,
             'log_date'             => $validated['log_date'],
@@ -121,6 +125,7 @@ class WorkLogController extends Controller
         $validated = $request->validate([
             'sub_kra_id'       => 'required|exists:sub_kras,id',
             'application_id'   => 'nullable|exists:applications,id',
+            'module_id'        => 'nullable|exists:application_modules,id',
             'title'            => 'required|string|max:255',
             'description'      => 'nullable|string',
             'log_date'         => 'required|date',

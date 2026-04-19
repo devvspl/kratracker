@@ -5,7 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ config('app.name', 'KRA Tracker') }}</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        teal: {
+                            50: '#f0fdfa', 100: '#ccfbf1', 200: '#99f6e4',
+                            300: '#5eead4', 400: '#2dd4bf', 500: '#14b8a6',
+                            600: '#0d9488', 700: '#0f766e', 800: '#115e59', 900: '#134e4a',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Alpine.js CDN -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
@@ -86,6 +104,10 @@
                                     <a href="{{ route('masters.applications.index') }}" class="flex items-center px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 {{ request()->routeIs('masters.applications.*') ? 'bg-teal-50 text-teal-700' : '' }}">
                                         <svg class="w-4 h-4 mr-2 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
                                         Applications
+                                    </a>
+                                    <a href="{{ route('masters.application-modules.index') }}" class="flex items-center px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 {{ request()->routeIs('masters.application-modules.*') ? 'bg-teal-50 text-teal-700' : '' }}">
+                                        <svg class="w-4 h-4 mr-2 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"/></svg>
+                                        Modules
                                     </a>
                                 </div>
                             </div>
@@ -189,6 +211,7 @@
                             <a href="{{ route('masters.task-statuses.index') }}" class="block pl-10 pr-4 py-2 text-sm font-medium {{ request()->routeIs('masters.task-statuses.*') ? 'text-teal-700 bg-teal-50 border-l-2 border-teal-500' : 'text-slate-600 hover:text-slate-900 border-l-2 border-transparent' }}">Task Statuses</a>
                             <a href="{{ route('masters.priorities.index') }}" class="block pl-10 pr-4 py-2 text-sm font-medium {{ request()->routeIs('masters.priorities.*') ? 'text-teal-700 bg-teal-50 border-l-2 border-teal-500' : 'text-slate-600 hover:text-slate-900 border-l-2 border-transparent' }}">Priorities</a>
                             <a href="{{ route('masters.applications.index') }}" class="block pl-10 pr-4 py-2 text-sm font-medium {{ request()->routeIs('masters.applications.*') ? 'text-teal-700 bg-teal-50 border-l-2 border-teal-500' : 'text-slate-600 hover:text-slate-900 border-l-2 border-transparent' }}">Applications</a>
+                            <a href="{{ route('masters.application-modules.index') }}" class="block pl-10 pr-4 py-2 text-sm font-medium {{ request()->routeIs('masters.application-modules.*') ? 'text-teal-700 bg-teal-50 border-l-2 border-teal-500' : 'text-slate-600 hover:text-slate-900 border-l-2 border-transparent' }}">Modules</a>
                         </div>
                     </div>
                     @endrole

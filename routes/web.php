@@ -11,6 +11,7 @@ use App\Http\Controllers\Masters\LogicController;
 use App\Http\Controllers\Masters\TaskStatusController;
 use App\Http\Controllers\Masters\PriorityController;
 use App\Http\Controllers\Masters\ApplicationController;
+use App\Http\Controllers\Masters\ApplicationModuleController;
 
 Route::get('/', function () {
     return redirect()->route('dashboard');
@@ -27,6 +28,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     
     // Work Logs
     Route::get('/work-logs', [WorkLogController::class, 'index'])->name('work-logs.index');
+    
+    // Modules API (for dynamic loading in work log form)
+    Route::get('/api/modules', [ApplicationModuleController::class, 'byApplication'])->name('api.modules');
+    Route::post('/api/modules', [ApplicationModuleController::class, 'storeApi'])->name('api.modules.store');
     
     // Work Log AJAX routes (no email verification required)
     Route::post('/work-logs/store', [WorkLogController::class, 'store'])->name('work-logs.store');
@@ -48,6 +53,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::resource('task-statuses', TaskStatusController::class);
         Route::resource('priorities', PriorityController::class);
         Route::resource('applications', ApplicationController::class);
+        Route::resource('application-modules', ApplicationModuleController::class);
     });
 });
 

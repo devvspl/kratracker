@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class WorkLog extends Model
 {
     protected $fillable = [
-        'user_id', 'sub_kra_id', 'application_id', 'title', 'description',
+        'user_id', 'sub_kra_id', 'application_id', 'module_id', 'title', 'description',
         'log_date', 'priority_id', 'status_id', 'achievement_value',
         'target_value_snapshot', 'score_calculated', 'logic_applied',
         'total_duration', 'actual_duration', 'duration_difference',
@@ -38,6 +38,11 @@ class WorkLog extends Model
     public function application()
     {
         return $this->belongsTo(Application::class);
+    }
+
+    public function module()
+    {
+        return $this->belongsTo(ApplicationModule::class, 'module_id');
     }
 
     public function priority()

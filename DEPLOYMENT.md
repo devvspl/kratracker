@@ -55,7 +55,7 @@ npm run build
 ## Production Environment Variables
 
 ```env
-APP_NAME="KRA Tracker"
+APP_NAME="Performia"
 APP_ENV=production
 APP_DEBUG=false
 APP_URL=https://your-domain.com
@@ -179,7 +179,7 @@ sudo nano /etc/systemd/system/kra-queue.service
 
 ```ini
 [Unit]
-Description=KRA Tracker Queue Worker
+Description=Performia Queue Worker
 After=network.target
 
 [Service]

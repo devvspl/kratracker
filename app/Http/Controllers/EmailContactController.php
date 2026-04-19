@@ -71,7 +71,7 @@ class EmailContactController extends Controller
         ]);
 
         $contact = EmailContact::findOrFail($validated['contact_id']);
-        $appName = config('app.name', 'KRA Tracker');
+        $appName = config('app.name', 'Performia');
         $sender  = auth()->user();
 
         $html = "

@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ config('app.name', 'KRA Tracker') }}</title>
+    <title>{{ config('app.name', 'Performia') }}</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <style>[x-cloak] { display: none !important; }</style>
@@ -30,7 +30,7 @@
                     </svg>
                 </div>
                 <div>
-                    <h1 class="text-white font-bold text-lg leading-tight">KRA Tracker</h1>
+                    <h1 class="text-white font-bold text-lg leading-tight">Performia</h1>
                     <p class="text-teal-200 text-xs">Performance Management</p>
                 </div>
             </div>
@@ -55,7 +55,7 @@
 
             {{-- Footer --}}
             <div class="relative">
-                <p class="text-teal-300 text-xs">&copy; {{ date('Y') }} KRA Tracker. All rights reserved.</p>
+                <p class="text-teal-300 text-xs">&copy; {{ date('Y') }} Performia. All rights reserved.</p>
             </div>
         </div>
 
@@ -71,7 +71,7 @@
                         </svg>
                     </div>
                     <div>
-                        <h1 class="text-base font-bold text-slate-800">KRA Tracker</h1>
+                        <h1 class="text-base font-bold text-slate-800">Performia</h1>
                         <p class="text-xs text-slate-500 -mt-0.5">Performance Management</p>
                     </div>
                 </div>

@@ -1,4 +1,4 @@
-# Quick Start Guide - KRA Tracker
+# Quick Start Guide - Performia
 
 ## Get Started in 3 Minutes
 

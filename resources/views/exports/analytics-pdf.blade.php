@@ -85,7 +85,7 @@
 
 {{-- ── Header ── --}}
 <div class="header">
-    <div class="header-brand">KRA Tracker — Analytics Report</div>
+    <div class="header-brand">Performia — Analytics Report</div>
     <div class="header-sub">Performance Management System</div>
     <table class="header-meta">
         <tr>
@@ -262,7 +262,7 @@
 </table>
 
 <div class="footer">
-    KRA Tracker &nbsp;·&nbsp; {{ $user->name }} &nbsp;·&nbsp; Generated on {{ $date }}
+    Performia &nbsp;·&nbsp; {{ $user->name }} &nbsp;·&nbsp; Generated on {{ $date }}
 </div>
 
 </body>

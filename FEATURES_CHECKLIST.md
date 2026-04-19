@@ -1,4 +1,4 @@
-# Features Checklist - KRA Tracker
+# Features Checklist - Performia
 
 ## ✅ MODULE 1 — MASTER CONFIGURATION
 

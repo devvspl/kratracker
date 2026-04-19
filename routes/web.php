@@ -48,6 +48,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     
     // Work Log AJAX routes (no email verification required)
     Route::post('/work-logs/store', [WorkLogController::class, 'store'])->name('work-logs.store');
+    Route::post('/work-logs/send-custom-email', [WorkLogController::class, 'sendCustomEmail'])->name('work-logs.send-custom-email');
     Route::get('/work-logs/{workLog}/show', [WorkLogController::class, 'show'])->name('work-logs.show');
     Route::put('/work-logs/{workLog}/update', [WorkLogController::class, 'update'])->name('work-logs.update');
     Route::delete('/work-logs/{workLog}/delete', [WorkLogController::class, 'destroy'])->name('work-logs.destroy');

@@ -1,4 +1,4 @@
-# 🚀 START HERE - KRA Tracker
+# 🚀 START HERE - Performia
 
 Welcome to the KRA Daily Work Status Tracker! This guide will get you up and running in minutes.
 

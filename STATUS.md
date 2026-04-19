@@ -1,4 +1,4 @@
-# 🎉 KRA Tracker - Status Report
+# 🎉 Performia - Status Report
 
 ## ✅ INSTALLATION COMPLETE
 
@@ -120,7 +120,7 @@ Use any of the test accounts above
 ## 🔧 Configuration
 
 ### Environment
-- **APP_NAME**: KRA Tracker
+- **APP_NAME**: Performia
 - **APP_ENV**: local
 - **APP_DEBUG**: true
 - **DB_CONNECTION**: mysql

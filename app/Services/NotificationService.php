@@ -65,19 +65,19 @@ class NotificationService
     private function emailSubject(string $type): string
     {
         return match($type) {
-            'task_overdue'        => '⚠️ Overdue Task Reminder — KRA Tracker',
-            'daily_reminder'      => '📋 Daily Work Log Reminder — KRA Tracker',
-            'pending_review'      => '🔔 Tasks Pending Review — KRA Tracker',
-            'task_created'        => '✅ Work Log Created — KRA Tracker',
-            'task_completed'      => '🎉 Task Completed — KRA Tracker',
-            'feedback_added'      => '💬 New Feedback on Your Task — KRA Tracker',
-            default               => '🔔 KRA Tracker Notification',
+            'task_overdue'        => '⚠️ Overdue Task Reminder — Performia',
+            'daily_reminder'      => '📋 Daily Work Log Reminder — Performia',
+            'pending_review'      => '🔔 Tasks Pending Review — Performia',
+            'task_created'        => '✅ Work Log Created — Performia',
+            'task_completed'      => '🎉 Task Completed — Performia',
+            'feedback_added'      => '💬 New Feedback on Your Task — Performia',
+            default               => '🔔 Performia Notification',
         };
     }
 
     private function emailBody(User $user, string $type, string $message, array $data): string
     {
-        $appName = config('app.name', 'KRA Tracker');
+        $appName = config('app.name', 'Performia');
         $appUrl  = config('app.url');
         $link    = isset($data['work_log_id'])
             ? $appUrl . 'work-logs?date_from=' . now()->toDateString() . '&date_to=' . now()->toDateString()
@@ -107,7 +107,7 @@ class NotificationService
               <h2 style='margin:0 0 8px;color:#1e293b;font-size:16px;font-weight:700;'>{$this->emailSubject($type)}</h2>
               <p style='margin:0 0 20px;color:#475569;font-size:14px;line-height:1.6;'>{$message}</p>
               " . (isset($data['title']) ? "<p style='margin:0 0 20px;padding:12px 16px;background:#f1f5f9;border-left:3px solid #0d9488;border-radius:4px;color:#334155;font-size:13px;'><strong>Task:</strong> {$data['title']}</p>" : "") . "
-              <a href='{$link}' style='display:inline-block;padding:10px 20px;background:#0d9488;color:#fff;text-decoration:none;border-radius:8px;font-size:13px;font-weight:600;'>View in KRA Tracker →</a>
+              <a href='{$link}' style='display:inline-block;padding:10px 20px;background:#0d9488;color:#fff;text-decoration:none;border-radius:8px;font-size:13px;font-weight:600;'>View in Performia →</a>
             </div>
             <div style='padding:16px 28px;border-top:1px solid #f1f5f9;background:#f8fafc;'>
               <p style='margin:0;color:#94a3b8;font-size:11px;'>Hi {$user->name}, this is an automated reminder from {$appName}. You can manage notification preferences in your profile.</p>

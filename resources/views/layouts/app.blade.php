@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ config('app.name', 'KRA Tracker') }}</title>
+    <title>{{ config('app.name', 'Performia') }}</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -48,7 +48,7 @@
                                 </svg>
                             </div>
                             <div>
-                                <h1 class="text-base font-bold text-slate-800">KRA Tracker</h1>
+                                <h1 class="text-base font-bold text-slate-800">Performia</h1>
                                 <p class="text-xs text-slate-500 -mt-0.5">Performance Management</p>
                             </div>
                         </div>
@@ -417,7 +417,7 @@
 
                     toShow.forEach((n, i) => {
                         setTimeout(() => {
-                            const title = typeLabels[n.type] || '🔔 KRA Tracker';
+                            const title = typeLabels[n.type] || '🔔 Performia';
                             pushNotify(title, n.message);
                         }, i * 1500); // stagger by 1.5s each
                     });

@@ -64,7 +64,7 @@ class ReportService
 
     private function buildHtml(User $recipient, User $employee, string $type, $logs, Carbon $from, Carbon $to): string
     {
-        $appName  = config('app.name', 'KRA Tracker');
+        $appName  = config('app.name', 'Performia');
         $appUrl   = rtrim(config('app.url'), '/');
         $total    = $logs->count();
         $completed = $logs->filter(fn($l) => str_contains(optional($l->status)->name ?? '', 'Completed'))->count();

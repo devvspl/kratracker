@@ -42,8 +42,71 @@ class WorkLogController extends Controller
         $statuses    = TaskStatus::where('is_active', true)->orderBy('sort_order')->get();
         $modules     = ApplicationModule::where('is_active', true)->orderBy('name')->get();
         $contacts    = EmailContact::where('is_active', true)->orderBy('name')->get(['id','name','email']);
+        $notifyUsers = \App\Models\User::orderBy('name')->get(['id','name','email']);
 
-        return view('work-logs.index', compact('workLogs', 'subKras', 'applications', 'priorities', 'statuses', 'modules', 'contacts'));
+        return view('work-logs.index', compact('workLogs', 'subKras', 'applications', 'priorities', 'statuses', 'modules', 'contacts', 'notifyUsers'));
+    }
+
+    public function sendCustomEmail(Request $request)
+    {
+        $validated = $request->validate([
+            'subject'     => 'required|string|max:255',
+            'body'        => 'required|string',
+            'contact_ids' => 'nullable|array',
+            'contact_ids.*' => 'exists:email_contacts,id',
+            'user_ids'    => 'nullable|array',
+            'user_ids.*'  => 'exists:users,id',
+        ]);
+
+        $appName = config('app.name', 'Performia');
+        $sender  = auth()->user();
+        $html    = "<!DOCTYPE html><html><body style='margin:0;padding:0;background:#f8fafc;font-family:Arial,sans-serif;'>
+        <div style='max-width:540px;margin:24px auto;background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;'>
+          <div style='background:#0d9488;padding:18px 24px;'>
+            <div style='color:#fff;font-size:17px;font-weight:700;'>{$appName}</div>
+            <div style='color:#99f6e4;font-size:11px;margin-top:2px;'>Message from {$sender->name}</div>
+          </div>
+          <div style='padding:24px;'>
+            <p style='color:#334155;font-size:13px;line-height:1.8;white-space:pre-line;'>" . nl2br(e($validated['body'])) . "</p>
+          </div>
+          <div style='padding:10px 24px;background:#f8fafc;border-top:1px solid #f1f5f9;font-size:10px;color:#94a3b8;'>
+            Sent by {$sender->name} via {$appName}
+          </div>
+        </div></body></html>";
+
+        $sent = 0;
+
+        // Send to external contacts
+        if (!empty($validated['contact_ids'])) {
+            $contacts = \App\Models\EmailContact::whereIn('id', $validated['contact_ids'])->get();
+            foreach ($contacts as $contact) {
+                try {
+                    \Mail::send([], [], function (\Illuminate\Mail\Message $mail) use ($contact, $validated, $html) {
+                        $mail->to($contact->email, $contact->name)->subject($validated['subject'])->html($html);
+                    });
+                    $sent++;
+                } catch (\Throwable $e) {
+                    \Log::error("Custom email failed to {$contact->email}: " . $e->getMessage());
+                }
+            }
+        }
+
+        // Send to system users
+        if (!empty($validated['user_ids'])) {
+            $users = \App\Models\User::whereIn('id', $validated['user_ids'])->get();
+            foreach ($users as $user) {
+                try {
+                    \Mail::send([], [], function (\Illuminate\Mail\Message $mail) use ($user, $validated, $html) {
+                        $mail->to($user->email, $user->name)->subject($validated['subject'])->html($html);
+                    });
+                    $sent++;
+                } catch (\Throwable $e) {
+                    \Log::error("Custom email failed to {$user->email}: " . $e->getMessage());
+                }
+            }
+        }
+
+        return response()->json(['success' => true, 'message' => "Email sent to {$sent} recipient(s)."]);
     }
 
     public function store(Request $request)
@@ -65,6 +128,8 @@ class WorkLogController extends Controller
             'remark'           => 'nullable|string',
             'notify_contact_ids' => 'nullable|array',
             'notify_contact_ids.*' => 'exists:email_contacts,id',
+            'notify_user_ids'    => 'nullable|array',
+            'notify_user_ids.*'  => 'exists:users,id',
         ]);
 
         // Get target value from period targets
@@ -117,6 +182,11 @@ class WorkLogController extends Controller
             $this->notifyContacts($workLog->fresh(['subKra.kra', 'status', 'priority']), 'complete', optional($workLog->status)->name ?? 'Created', $validated['notify_contact_ids']);
         }
 
+        // Notify selected system users via email
+        if (!empty($validated['notify_user_ids'])) {
+            $this->notifySystemUsers($workLog->fresh(['subKra.kra', 'status', 'priority']), $validated['notify_user_ids'], 'Created');
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Work log created successfully',
@@ -157,6 +227,8 @@ class WorkLogController extends Controller
             'remark'           => 'nullable|string',
             'notify_contact_ids'   => 'nullable|array',
             'notify_contact_ids.*' => 'exists:email_contacts,id',
+            'notify_user_ids'      => 'nullable|array',
+            'notify_user_ids.*'    => 'exists:users,id',
         ]);
 
         if (isset($validated['log_date'])) {
@@ -181,6 +253,11 @@ class WorkLogController extends Controller
             $this->notifyContacts($workLog, 'complete', $newStatus, $validated['notify_contact_ids'] ?? []);
         } else {
             $this->notifyContacts($workLog, 'status_change', $newStatus, $validated['notify_contact_ids'] ?? []);
+        }
+
+        // Notify selected system users
+        if (!empty($validated['notify_user_ids'])) {
+            $this->notifySystemUsers($workLog, $validated['notify_user_ids'], $newStatus);
         }
 
         return response()->json([
@@ -218,40 +295,14 @@ class WorkLogController extends Controller
 
         if ($contacts->isEmpty()) return;
 
-        $appName  = config('app.name', 'KRA Tracker');
-        $appUrl   = rtrim(config('app.url'), '/');
-        $user     = auth()->user();
-        $subject  = $event === 'complete'
+        $appName = config('app.name', 'Performia');
+        $appUrl  = rtrim(config('app.url'), '/');
+        $user    = auth()->user();
+        $subject = $event === 'complete'
             ? "✅ Task Completed — {$workLog->title}"
             : "🔄 Task Status Updated — {$workLog->title}";
 
-        $kra    = optional($workLog->subKra->kra)->name ?? '—';
-        $subKra = optional($workLog->subKra)->name ?? '—';
-        $score  = number_format($workLog->score_calculated, 1);
-        $dur    = ($workLog->actual_duration ?? 0) . 'h';
-
-        $html = "<!DOCTYPE html><html><body style='margin:0;padding:0;background:#f8fafc;font-family:Arial,sans-serif;'>
-        <div style='max-width:540px;margin:24px auto;background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;'>
-          <div style='background:#0d9488;padding:18px 24px;'>
-            <div style='color:#fff;font-size:17px;font-weight:700;'>{$appName}</div>
-            <div style='color:#99f6e4;font-size:11px;margin-top:2px;'>Task Status Notification</div>
-          </div>
-          <div style='padding:20px 24px;'>
-            <h2 style='margin:0 0 12px;color:#1e293b;font-size:15px;'>{$subject}</h2>
-            <table style='width:100%;border-collapse:collapse;font-size:12px;'>
-              <tr><td style='padding:6px 0;color:#64748b;width:120px;'>Employee</td><td style='padding:6px 0;font-weight:600;color:#334155;'>{$user->name}</td></tr>
-              <tr><td style='padding:6px 0;color:#64748b;'>Task</td><td style='padding:6px 0;font-weight:600;color:#334155;'>{$workLog->title}</td></tr>
-              <tr><td style='padding:6px 0;color:#64748b;'>KRA / Sub-KRA</td><td style='padding:6px 0;color:#334155;'>{$kra} › {$subKra}</td></tr>
-              <tr><td style='padding:6px 0;color:#64748b;'>Status</td><td style='padding:6px 0;'><span style='background:#dcfce7;color:#166534;padding:2px 8px;border-radius:10px;font-weight:600;font-size:11px;'>{$statusName}</span></td></tr>
-              <tr><td style='padding:6px 0;color:#64748b;'>Score</td><td style='padding:6px 0;font-weight:700;color:#0d9488;'>{$score}%</td></tr>
-              <tr><td style='padding:6px 0;color:#64748b;'>Duration</td><td style='padding:6px 0;color:#334155;'>{$dur}</td></tr>
-              <tr><td style='padding:6px 0;color:#64748b;'>Date</td><td style='padding:6px 0;color:#334155;'>{$workLog->log_date->format('d M Y')}</td></tr>
-            </table>
-          </div>
-          <div style='padding:12px 24px;background:#f8fafc;border-top:1px solid #f1f5f9;font-size:10px;color:#94a3b8;'>
-            Automated notification from {$appName}
-          </div>
-        </div></body></html>";
+        $html = $this->buildNotificationHtml($appName, $appUrl, $subject, $workLog, $statusName, $user->name);
 
         foreach ($contacts as $contact) {
             try {
@@ -262,6 +313,60 @@ class WorkLogController extends Controller
                 \Log::error("Contact notify failed to {$contact->email}: " . $e->getMessage());
             }
         }
+    }
+
+    private function notifySystemUsers(WorkLog $workLog, array $userIds, string $statusName): void
+    {
+        $users = \App\Models\User::whereIn('id', $userIds)->get();
+        if ($users->isEmpty()) return;
+
+        $appName = config('app.name', 'Performia');
+        $appUrl  = rtrim(config('app.url'), '/');
+        $sender  = auth()->user();
+        $subject = "🔔 Task Update: \"{$workLog->title}\" — {$statusName}";
+
+        $html = $this->buildNotificationHtml($appName, $appUrl, $subject, $workLog, $statusName, $sender->name);
+
+        foreach ($users as $user) {
+            try {
+                \Mail::send([], [], function (\Illuminate\Mail\Message $mail) use ($user, $subject, $html) {
+                    $mail->to($user->email, $user->name)->subject($subject)->html($html);
+                });
+            } catch (\Throwable $e) {
+                \Log::error("User notify failed to {$user->email}: " . $e->getMessage());
+            }
+        }
+    }
+
+    private function buildNotificationHtml(string $appName, string $appUrl, string $subject, WorkLog $workLog, string $statusName, string $senderName): string
+    {
+        $title = e($workLog->title);
+        $date  = $workLog->log_date->format('d M Y');
+        $app   = optional($workLog->application)->name;
+        $appLine = $app ? "<tr><td style='padding:5px 0;color:#64748b;width:110px;'>Application</td><td style='padding:5px 0;color:#334155;'>" . e($app) . "</td></tr>" : '';
+
+        return "<!DOCTYPE html><html><body style='margin:0;padding:0;background:#f8fafc;font-family:Arial,sans-serif;'>
+        <div style='max-width:520px;margin:24px auto;background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;'>
+          <div style='background:#0d9488;padding:16px 22px;'>
+            <div style='color:#fff;font-size:16px;font-weight:700;'>{$appName}</div>
+            <div style='color:#99f6e4;font-size:11px;margin-top:2px;'>Task Notification</div>
+          </div>
+          <div style='padding:20px 22px;'>
+            <table style='width:100%;border-collapse:collapse;font-size:12px;'>
+              <tr><td style='padding:5px 0;color:#64748b;width:110px;'>Task</td><td style='padding:5px 0;font-weight:600;color:#1e293b;'>{$title}</td></tr>
+              <tr><td style='padding:5px 0;color:#64748b;'>Status</td><td style='padding:5px 0;'><span style='background:#f0fdfa;color:#0f766e;padding:2px 8px;border-radius:10px;font-weight:600;font-size:11px;'>{$statusName}</span></td></tr>
+              <tr><td style='padding:5px 0;color:#64748b;'>Date</td><td style='padding:5px 0;color:#334155;'>{$date}</td></tr>
+              {$appLine}
+              <tr><td style='padding:5px 0;color:#64748b;'>Updated by</td><td style='padding:5px 0;color:#334155;'>{$senderName}</td></tr>
+            </table>
+            <div style='margin-top:16px;'>
+              <a href='{$appUrl}/work-logs' style='display:inline-block;padding:8px 18px;background:#0d9488;color:#fff;text-decoration:none;border-radius:8px;font-size:12px;font-weight:600;'>View Work Logs →</a>
+            </div>
+          </div>
+          <div style='padding:10px 22px;background:#f8fafc;border-top:1px solid #f1f5f9;font-size:10px;color:#94a3b8;'>
+            Automated notification from {$appName}
+          </div>
+        </div></body></html>";
     }
 
     public function storeFeedback(Request $request, WorkLog $workLog)

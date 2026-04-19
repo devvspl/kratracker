@@ -2,7 +2,7 @@
 
     <div class="mb-8">
         <h2 class="text-2xl font-bold text-slate-800">Welcome back</h2>
-        <p class="text-slate-500 text-sm mt-1">Sign in to your KRA Tracker account</p>
+        <p class="text-slate-500 text-sm mt-1">Sign in to your Performia account</p>
     </div>
 
     {{-- Session Status --}}

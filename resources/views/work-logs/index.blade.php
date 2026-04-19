@@ -49,171 +49,210 @@
     </style>
 
     @php $defaultPriorityId = App\Models\Priority::where('name', 'Common')->value('id') ?? ''; @endphp
-    <div x-data="{
-        showModal: false,
-        showDelete: false,
-        showFeedback: false,
-        modalMode: 'create',
-        loading: false,
-        deleteId: null,
-        feedbackLogId: null,
-        feedbacks: [],
-        feedbackForm: { feedback_type: 'self', comment: '', rating: 5 },
-        formData: {
-            sub_kra_id: '',
-            application_id: '',
-            module_id: '',
-            title: '',
-            description: '',
-            log_date: new Date().toISOString().split('T')[0],
-            priority_id: '{{ $defaultPriorityId }}',
-            status_id: '',
-            achievement_value: 1,
-            total_duration: 0,
-            actual_duration: 0,
-            test_status: '',
-            testing_details: '',
-            remark: '',
-            notify_contact_ids: []
-        },
-        selectedId: null,
-        activeTab: 'general',
-        showFilters: false,
-        filters: {
-            date_from: '{{ request()->has('date_from') ? request('date_from') : date('Y-m-d') }}',
-            date_to: '{{ request()->has('date_to') ? request('date_to') : date('Y-m-d') }}',
-            sub_kra_id: '{{ request('sub_kra_id') }}',
-            status_id: '{{ request('status_id') }}',
-            test_status: '{{ request('test_status') }}',
-            application_id: '{{ request('application_id') }}',
-            module_id: '{{ request('module_id') }}'
-        },
-        get activeFilterCount() {
-            let count = 0;
-            if (this.filters.sub_kra_id) count++;
-            if (this.filters.status_id) count++;
-            if (this.filters.test_status) count++;
-            if (this.filters.application_id) count++;
-            if (this.filters.module_id) count++;
-            return count;
-        },
-    
-        openCreate() {
-            this.modalMode = 'create';
-            this.selectedId = null;
-            this.activeTab = 'general';
-            this.formData = { sub_kra_id: '', application_id: '', module_id: '', title: '', description: '', log_date: new Date().toISOString().split('T')[0], priority_id: '{{ $defaultPriorityId }}', status_id: '', achievement_value: 1, total_duration: 0, actual_duration: 0, test_status: '', testing_details: '', remark: '', notify_contact_ids: [] };
-            this.showModal = true;
-        },
-        async openEdit(id) {
-            this.modalMode = 'edit';
-            this.selectedId = id;
-            this.loading = true;
-            this.activeTab = 'general';
-            try {
-                const res = await fetch('/work-logs/' + id + '/show');
-                const data = await res.json();
-                if (data.success) {
-                    const d = data.data;
-                    this.formData = { sub_kra_id: d.sub_kra_id, application_id: d.application_id || '', module_id: d.module_id || '', title: d.title, description: d.description || '', log_date: d.log_date, priority_id: d.priority_id, status_id: d.status_id, achievement_value: d.achievement_value || 1, total_duration: d.total_duration || 0, actual_duration: d.actual_duration || 0, test_status: d.test_status || '', testing_details: d.testing_details || '', remark: d.remark || '', notify_contact_ids: [] };
-                    this.showModal = true;
+
+    <script>
+    function workLogPage() {
+        return {
+            showModal: false, showDelete: false, showFeedback: false,
+            modalMode: 'create', loading: false, deleteId: null,
+            feedbackLogId: null, feedbacks: [],
+            feedbackForm: { feedback_type: 'self', comment: '', rating: 5 },
+            formData: {
+                sub_kra_id: '', application_id: '', module_id: '', title: '', description: '',
+                log_date: new Date().toISOString().split('T')[0],
+                priority_id: '{{ $defaultPriorityId }}', status_id: '', achievement_value: 1,
+                total_duration: 0, actual_duration: 0, test_status: '', testing_details: '',
+                remark: '', notify_contact_ids: [], notify_user_ids: []
+            },
+            showCustomEmail: false,
+            customEmail: { subject: '', body: '' },
+            selectedId: null, activeTab: 'general', showFilters: false,
+            filters: {
+                date_from: '{{ request()->has("date_from") ? request("date_from") : date("Y-m-d") }}',
+                date_to:   '{{ request()->has("date_to")   ? request("date_to")   : date("Y-m-d") }}',
+                sub_kra_id:     '{{ request("sub_kra_id") }}',
+                status_id:      '{{ request("status_id") }}',
+                test_status:    '{{ request("test_status") }}',
+                application_id: '{{ request("application_id") }}',
+                module_id:      '{{ request("module_id") }}'
+            },
+            get activeFilterCount() {
+                let c = 0;
+                if (this.filters.sub_kra_id)     c++;
+                if (this.filters.status_id)      c++;
+                if (this.filters.test_status)    c++;
+                if (this.filters.application_id) c++;
+                if (this.filters.module_id)      c++;
+                return c;
+            },
+            csrf() { return document.querySelector('meta[name=csrf-token]').content; },
+
+            openCreate() {
+                this.modalMode = 'create'; this.selectedId = null; this.activeTab = 'general';
+                this.showCustomEmail = false;
+                this.formData = { sub_kra_id:'', application_id:'', module_id:'', title:'', description:'',
+                    log_date: new Date().toISOString().split('T')[0],
+                    priority_id:'{{ $defaultPriorityId }}', status_id:'', achievement_value:1,
+                    total_duration:0, actual_duration:0, test_status:'', testing_details:'',
+                    remark:'', notify_contact_ids:[], notify_user_ids:[] };
+                this.showModal = true;
+            },
+
+            async openEdit(id) {
+                this.modalMode = 'edit'; this.selectedId = id; this.loading = true;
+                this.activeTab = 'general'; this.showCustomEmail = false;
+                try {
+                    const res  = await fetch('/work-logs/' + id + '/show');
+                    const data = await res.json();
+                    if (data.success) {
+                        const d = data.data;
+                        this.formData = {
+                            sub_kra_id: d.sub_kra_id, application_id: d.application_id||'',
+                            module_id: d.module_id||'', title: d.title, description: d.description||'',
+                            log_date: (d.log_date||'').substring(0,10),
+                            priority_id: d.priority_id, status_id: d.status_id,
+                            achievement_value: d.achievement_value||1,
+                            total_duration: d.total_duration||0, actual_duration: d.actual_duration||0,
+                            test_status: d.test_status||'', testing_details: d.testing_details||'',
+                            remark: d.remark||'', notify_contact_ids:[], notify_user_ids:[]
+                        };
+                        this.showModal = true;
+                    }
+                } catch(e) { window.showToast('Error loading record','error'); }
+                finally { this.loading = false; }
+            },
+
+            confirmDelete(id) { this.deleteId = id; this.showDelete = true; },
+
+            async openFeedback(id) {
+                this.feedbackLogId = id;
+                this.feedbackForm = { feedback_type:'self', comment:'', rating:5 };
+                try {
+                    const res  = await fetch('/work-logs/' + id + '/show');
+                    const data = await res.json();
+                    if (data.success) this.feedbacks = data.data.feedbacks || [];
+                } catch(e) {}
+                this.showFeedback = true;
+            },
+
+            async submitForm() {
+                if (!this.formData.title || !this.formData.sub_kra_id) {
+                    this.activeTab = 'general';
+                    return window.showToast('Please fill out Task Title and Sub-KRA','error');
                 }
-            } catch (e) { window.showToast('Error loading record', 'error'); } finally { this.loading = false; }
-        },
-        confirmDelete(id) { this.deleteId = id;
-            this.showDelete = true; },
-        async openFeedback(id) {
-            this.feedbackLogId = id;
-            this.feedbackForm = { feedback_type: 'self', comment: '', rating: 5 };
-            try {
-                const res = await fetch('/work-logs/' + id + '/show');
-                const data = await res.json();
-                if (data.success) { this.feedbacks = data.data.feedbacks || []; }
-            } catch (e) {}
-            this.showFeedback = true;
-        },
-        async submitForm() {
-            // Frontend validation
-            if (!this.formData.title || !this.formData.sub_kra_id) {
-                this.activeTab = 'general';
-                return window.showToast('Please fill out Task Title and Sub-KRA', 'error');
-            }
-            if (!this.formData.log_date || !this.formData.status_id) {
-                this.activeTab = 'status';
-                return window.showToast('Please fill out Log Date and Status', 'error');
-            }
-    
-            this.loading = true;
-            const isEdit = this.modalMode === 'edit';
-            const url = isEdit ? '/work-logs/' + this.selectedId + '/update' : '/work-logs/store';
-            try {
-                const res = await fetch(url, { method: isEdit ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content }, body: JSON.stringify(this.formData) });
-                const data = await res.json();
-                if (res.status === 422) {
-                    const errors = data.errors ? Object.values(data.errors).flat().join('\n') : data.message;
-                    return window.showToast(errors || 'Validation error', 'error');
+                if (!this.formData.log_date || !this.formData.status_id) {
+                    this.activeTab = 'status';
+                    return window.showToast('Please fill out Log Date and Status','error');
                 }
-                if (res.ok && data.success) { window.showToast(data.message, 'success');
-                    this.showModal = false;
-                    setTimeout(() => location.reload(), 800); } else { window.showToast(data.message || 'Validation error', 'error'); }
-            } catch (e) { window.showToast('Network error', 'error'); } finally { this.loading = false; }
-        },
-        async deleteLog() {
-            this.loading = true;
-            try {
-                const res = await fetch('/work-logs/' + this.deleteId + '/delete', { method: 'DELETE', headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content } });
-                const data = await res.json();
-                if (data.success) { window.showToast(data.message, 'success');
-                    this.showDelete = false;
-                    setTimeout(() => location.reload(), 800); } else { window.showToast(data.message || 'Error', 'error'); }
-            } catch (e) { window.showToast('Network error', 'error'); } finally { this.loading = false; }
-        },
-        async submitFeedback() {
-            this.loading = true;
-            try {
-                const res = await fetch('/work-logs/' + this.feedbackLogId + '/feedback', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content }, body: JSON.stringify(this.feedbackForm) });
-                const data = await res.json();
-                if (data.success) { window.showToast(data.message, 'success');
-                    this.feedbacks.push(data.data);
-                    this.feedbackForm = { feedback_type: 'self', comment: '', rating: 5 }; } else { window.showToast(data.message || 'Error', 'error'); }
-            } catch (e) { window.showToast('Network error', 'error'); } finally { this.loading = false; }
-        },
-        applyFilters() {
-            const params = new URLSearchParams();
-            Object.keys(this.filters).forEach(k => { if (this.filters[k]) params.append(k, this.filters[k]); });
-            window.location.href = '{{ route('work-logs.index') }}?' + params.toString();
-        },
-        async loadModules(appId) {
-            const url = '/api/modules' + (appId ? '?application_id=' + appId : '');
-            try {
-                const res = await fetch(url);
-                const data = await res.json();
-                const ts = window._moduleTomSelectInstance;
-                if (!ts) return;
-                ts.clearOptions();
-                ts.addOption({ value: '', text: 'None' });
-                data.forEach(m => ts.addOption({ value: m.id, text: m.name }));
-                ts.refreshOptions(false);
-                this.formData.module_id = '';
-                ts.setValue('', true);
-            } catch (e) {}
-        },
-        async loadFilterModules(appId) {
-            const url = '/api/modules' + (appId ? '?application_id=' + appId : '');
-            try {
-                const res = await fetch(url);
-                const data = await res.json();
-                const ts = window._filterModuleTomSelect;
-                if (!ts) return;
-                ts.clearOptions();
-                ts.addOption({ value: '', text: 'All' });
-                data.forEach(m => ts.addOption({ value: m.id, text: m.name }));
-                ts.refreshOptions(false);
-                this.filters.module_id = '';
-                ts.setValue('', true);
-            } catch (e) {}
-        }
-    }">
+                this.loading = true;
+                const isEdit = this.modalMode === 'edit';
+                const url = isEdit ? '/work-logs/' + this.selectedId + '/update' : '/work-logs/store';
+                try {
+                    const res  = await fetch(url, { method: isEdit ? 'PUT' : 'POST',
+                        headers: { 'Content-Type':'application/json', 'Accept':'application/json', 'X-CSRF-TOKEN': this.csrf() },
+                        body: JSON.stringify(this.formData) });
+                    const data = await res.json();
+                    if (res.status === 422) {
+                        const errors = data.errors ? Object.values(data.errors).flat().join('\n') : data.message;
+                        return window.showToast(errors || 'Validation error','error');
+                    }
+                    if (res.ok && data.success) { window.showToast(data.message,'success'); this.showModal=false; setTimeout(()=>location.reload(),800); }
+                    else window.showToast(data.message||'Validation error','error');
+                } catch(e) { window.showToast('Network error','error'); }
+                finally { this.loading = false; }
+            },
+
+            async deleteLog() {
+                this.loading = true;
+                try {
+                    const res  = await fetch('/work-logs/' + this.deleteId + '/delete', { method:'DELETE', headers:{'X-CSRF-TOKEN':this.csrf()} });
+                    const data = await res.json();
+                    if (data.success) { window.showToast(data.message,'success'); this.showDelete=false; setTimeout(()=>location.reload(),800); }
+                    else window.showToast(data.message||'Error','error');
+                } catch(e) { window.showToast('Network error','error'); }
+                finally { this.loading = false; }
+            },
+
+            async submitFeedback() {
+                this.loading = true;
+                try {
+                    const res  = await fetch('/work-logs/' + this.feedbackLogId + '/feedback', { method:'POST',
+                        headers:{'Content-Type':'application/json','X-CSRF-TOKEN':this.csrf()},
+                        body: JSON.stringify(this.feedbackForm) });
+                    const data = await res.json();
+                    if (data.success) { window.showToast(data.message,'success'); this.feedbacks.push(data.data); this.feedbackForm={feedback_type:'self',comment:'',rating:5}; }
+                    else window.showToast(data.message||'Error','error');
+                } catch(e) { window.showToast('Network error','error'); }
+                finally { this.loading = false; }
+            },
+
+            openCustomEmail() {
+                const title = this.formData.title || 'Task Update';
+                const date  = this.formData.log_date || new Date().toISOString().substring(0,10);
+                this.customEmail.subject = 'Task Update: "' + title + '" — ' + date;
+                this.customEmail.body    = 'Hi,\n\nI wanted to share an update on the following task:\n\nTask: ' + title + '\nDate: ' + date + '\nStatus: (please check the system for current status)\n\nPlease review and let me know if you have any questions.\n\nBest regards';
+                this.showCustomEmail = true;
+            },
+
+            async sendCustomEmail() {
+                if (!this.customEmail.subject || !this.customEmail.body) return window.showToast('Subject and body are required','error');
+                const total = (this.formData.notify_contact_ids||[]).length + (this.formData.notify_user_ids||[]).length;
+                if (!total) return window.showToast('Select at least one recipient first','error');
+                this.loading = true;
+                try {
+                    const res  = await fetch('/work-logs/send-custom-email', { method:'POST',
+                        headers:{'Content-Type':'application/json','X-CSRF-TOKEN':this.csrf()},
+                        body: JSON.stringify({ subject: this.customEmail.subject, body: this.customEmail.body,
+                            contact_ids: this.formData.notify_contact_ids||[], user_ids: this.formData.notify_user_ids||[] }) });
+                    const data = await res.json();
+                    if (data.success) { window.showToast(data.message,'success'); this.showCustomEmail=false; }
+                    else window.showToast(data.message||'Error','error');
+                } catch(e) { window.showToast('Network error','error'); }
+                finally { this.loading = false; }
+            },
+
+            applyFilters() {
+                const params = new URLSearchParams();
+                Object.keys(this.filters).forEach(k => { if (this.filters[k]) params.append(k, this.filters[k]); });
+                window.location.href = '{{ route("work-logs.index") }}?' + params.toString();
+            },
+
+            async loadModules(appId) {
+                const url = '/api/modules' + (appId ? '?application_id=' + appId : '');
+                try {
+                    const res  = await fetch(url);
+                    const data = await res.json();
+                    const ts   = window._moduleTomSelectInstance;
+                    if (!ts) return;
+                    ts.clearOptions();
+                    ts.addOption({ value:'', text:'None' });
+                    data.forEach(m => ts.addOption({ value: m.id, text: m.name }));
+                    ts.refreshOptions(false);
+                    this.formData.module_id = '';
+                    ts.setValue('', true);
+                } catch(e) {}
+            },
+
+            async loadFilterModules(appId) {
+                const url = '/api/modules' + (appId ? '?application_id=' + appId : '');
+                try {
+                    const res  = await fetch(url);
+                    const data = await res.json();
+                    const ts   = window._filterModuleTomSelect;
+                    if (!ts) return;
+                    ts.clearOptions();
+                    ts.addOption({ value:'', text:'All' });
+                    data.forEach(m => ts.addOption({ value: m.id, text: m.name }));
+                    ts.refreshOptions(false);
+                    this.filters.module_id = '';
+                    ts.setValue('', true);
+                } catch(e) {}
+            }
+        };
+    }
+    </script>
+
+    <div x-data="workLogPage()">
 
         {{-- Header --}}
         <div class="flex flex-wrap items-center justify-between mb-5 gap-3">
@@ -505,7 +544,7 @@
                     {{-- ✅ Form wraps BOTH the scrollable content AND the footer --}}
                     <form @submit.prevent="submitForm" novalidate>
 
-                        <div class="p-6 h-[400px] overflow-y-auto">
+                        <div class="p-6 min-h-[280px] overflow-y-auto">
 
                             {{-- Tab 1: General Info --}}
                             <div x-show="activeTab === 'general'" x-transition:enter="transition ease-out duration-300"
@@ -692,38 +731,82 @@
                                     </div>
                                 </div>
 
-                                {{-- Notify Contacts --}}
-                                @if ($contacts->isNotEmpty())
-                                    <div class="mt-4 pt-4 border-t border-slate-100">
-                                        <label class="block text-xs font-medium text-slate-700 mb-2">
-                                            Notify Contacts
-                                            <span class="text-slate-400 font-normal ml-1">(optional — send email update to
-                                                selected contacts)</span>
+                                {{-- Notify Recipients --}}
+                                <div class="mt-4 pt-3 border-t border-slate-100" x-data="{ search: '' }">
+                                    <p class="text-xs font-semibold text-slate-600 mb-2">
+                                        Notify via Email
+                                        <span class="text-slate-400 font-normal ml-1">(optional)</span>
+                                    </p>
+                                    <input type="text" x-model="search" placeholder="Search contacts or users..."
+                                        class="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-teal-500 mb-2 bg-white">
+
+                                    @php
+                                        $allRecipients = collect();
+                                        foreach($contacts as $c) $allRecipients->push(['id' => 'c_'.$c->id, 'real_id' => $c->id, 'type' => 'contact', 'name' => $c->name, 'email' => $c->email]);
+                                        foreach($notifyUsers as $u) $allRecipients->push(['id' => 'u_'.$u->id, 'real_id' => $u->id, 'type' => 'user', 'name' => $u->name, 'email' => $u->email]);
+                                    @endphp
+
+                                    <div class="max-h-32 overflow-y-auto space-y-1 pr-1">
+                                        @foreach($allRecipients as $r)
+                                        <label x-show="search === '' || '{{ strtolower($r['name']) }} {{ strtolower($r['email']) }}'.includes(search.toLowerCase())"
+                                            class="flex items-center gap-2 cursor-pointer px-2.5 py-1.5 rounded-lg border border-slate-100 hover:bg-teal-50 hover:border-teal-200 transition-colors text-xs">
+                                            <input type="checkbox" value="{{ $r['real_id'] }}"
+                                                @change="
+                                                    const id = {{ $r['real_id'] }};
+                                                    const type = '{{ $r['type'] }}';
+                                                    const key = type === 'contact' ? 'notify_contact_ids' : 'notify_user_ids';
+                                                    if (!formData[key]) formData[key] = [];
+                                                    if ($event.target.checked) { formData[key].push(id); }
+                                                    else { formData[key] = formData[key].filter(x => x !== id); }
+                                                "
+                                                :checked="(formData.{{ $r['type'] === 'contact' ? 'notify_contact_ids' : 'notify_user_ids' }} || []).includes({{ $r['real_id'] }})"
+                                                class="w-3.5 h-3.5 text-teal-600 rounded shrink-0">
+                                            <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold {{ $r['type'] === 'user' ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-500' }}">
+                                                {{ $r['type'] === 'user' ? 'User' : 'Contact' }}
+                                            </span>
+                                            <span class="font-medium text-slate-700 truncate">{{ $r['name'] }}</span>
+                                            <span class="text-slate-400 truncate">&lt;{{ $r['email'] }}&gt;</span>
                                         </label>
-                                        <div class="flex flex-wrap gap-2">
-                                            @foreach ($contacts as $contact)
-                                                <label
-                                                    class="flex items-center gap-2 cursor-pointer px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-teal-50 hover:border-teal-300 transition-colors text-xs">
-                                                    <input type="checkbox" value="{{ $contact->id }}"
-                                                        @change="
-                                            const id = {{ $contact->id }};
-                                            if ($event.target.checked) {
-                                                if (!formData.notify_contact_ids) formData.notify_contact_ids = [];
-                                                formData.notify_contact_ids.push(id);
-                                            } else {
-                                                formData.notify_contact_ids = (formData.notify_contact_ids || []).filter(x => x !== id);
-                                            }
-                                        "
-                                                        :checked="(formData.notify_contact_ids || []).includes(
-                                                            {{ $contact->id }})"
-                                                        class="w-3.5 h-3.5 text-teal-600 rounded">
-                                                    <span class="text-slate-700">{{ $contact->name }}</span>
-                                                    <span class="text-slate-400">&lt;{{ $contact->email }}&gt;</span>
+                                        @endforeach
+                                    </div>
+
+                                    {{-- Custom Email Composer --}}
+                                    <div class="mt-3 pt-3 border-t border-slate-100">
+                                        <button type="button" @click="openCustomEmail()"
+                                            class="flex items-center gap-1.5 text-xs font-medium text-teal-600 hover:text-teal-700 transition-colors">
+                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                                            Compose Custom Email to Selected Recipients
+                                        </button>
+
+                                        <div x-show="showCustomEmail" x-transition class="mt-3 space-y-2" style="display:none;">
+                                            <div>
+                                                <label class="block text-xs font-medium text-slate-600 mb-1">Subject</label>
+                                                <input type="text" x-model="customEmail.subject"
+                                                    class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none"
+                                                    placeholder="Email subject...">
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-medium text-slate-600 mb-1">
+                                                    Message Body
+                                                    <span class="text-slate-400 font-normal ml-1">— edit the auto-suggested content below</span>
                                                 </label>
-                                            @endforeach
+                                                <textarea x-model="customEmail.body" rows="5"
+                                                    class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none resize-y font-mono"
+                                                    placeholder="Write your message..."></textarea>
+                                            </div>
+                                            <div class="flex items-center gap-2">
+                                                <button type="button" @click="sendCustomEmail()" :disabled="loading"
+                                                    class="px-4 py-1.5 text-xs font-semibold bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50 flex items-center gap-1.5 transition-colors">
+                                                    <svg x-show="loading" class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+                                                    <svg x-show="!loading" class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+                                                    <span x-text="loading ? 'Sending...' : 'Send Email'"></span>
+                                                </button>
+                                                <button type="button" @click="showCustomEmail = false"
+                                                    class="px-3 py-1.5 text-xs text-slate-500 hover:text-slate-700 transition-colors">Cancel</button>
+                                            </div>
                                         </div>
                                     </div>
-                                @endif
+                                </div>
                             </div>
                         </div>
                         <div class="px-6 py-4 flex justify-end gap-3 border-t border-slate-100 bg-slate-50/50">
@@ -757,6 +840,7 @@
                 </div>
             </div>
         </div>
+        
         {{-- Feedback Modal --}}
         <div x-show="showFeedback" class="fixed inset-0 z-50 overflow-y-auto" style="display: none;">
             <div class="flex items-center justify-center min-h-screen px-4 text-center sm:p-0">

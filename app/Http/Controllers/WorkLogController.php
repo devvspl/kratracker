@@ -10,6 +10,7 @@ use App\Models\ApplicationModule;
 use App\Models\Priority;
 use App\Models\TaskStatus;
 use App\Models\PeriodTarget;
+use App\Models\EmailContact;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -40,8 +41,9 @@ class WorkLogController extends Controller
         $priorities  = Priority::where('is_active', true)->orderBy('level', 'desc')->get();
         $statuses    = TaskStatus::where('is_active', true)->orderBy('sort_order')->get();
         $modules     = ApplicationModule::where('is_active', true)->orderBy('name')->get();
+        $contacts    = EmailContact::where('is_active', true)->orderBy('name')->get(['id','name','email']);
 
-        return view('work-logs.index', compact('workLogs', 'subKras', 'applications', 'priorities', 'statuses', 'modules'));
+        return view('work-logs.index', compact('workLogs', 'subKras', 'applications', 'priorities', 'statuses', 'modules', 'contacts'));
     }
 
     public function store(Request $request)
@@ -61,6 +63,8 @@ class WorkLogController extends Controller
             'test_status'      => 'nullable|string|max:100',
             'testing_details'  => 'nullable|string',
             'remark'           => 'nullable|string',
+            'notify_contact_ids' => 'nullable|array',
+            'notify_contact_ids.*' => 'exists:email_contacts,id',
         ]);
 
         // Get target value from period targets
@@ -108,6 +112,11 @@ class WorkLogController extends Controller
             ['work_log_id' => $workLog->id, 'title' => $workLog->title]
         );
 
+        // Notify selected external contacts
+        if (!empty($validated['notify_contact_ids'])) {
+            $this->notifyContacts($workLog->fresh(['subKra.kra', 'status', 'priority']), 'complete', optional($workLog->status)->name ?? 'Created', $validated['notify_contact_ids']);
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Work log created successfully',
@@ -146,6 +155,8 @@ class WorkLogController extends Controller
             'test_status'      => 'nullable|string|max:100',
             'testing_details'  => 'nullable|string',
             'remark'           => 'nullable|string',
+            'notify_contact_ids'   => 'nullable|array',
+            'notify_contact_ids.*' => 'exists:email_contacts,id',
         ]);
 
         if (isset($validated['log_date'])) {
@@ -167,6 +178,9 @@ class WorkLogController extends Controller
                 "Great work! Task \"{$workLog->title}\" has been marked as Completed.",
                 ['work_log_id' => $workLog->id, 'title' => $workLog->title]
             );
+            $this->notifyContacts($workLog, 'complete', $newStatus, $validated['notify_contact_ids'] ?? []);
+        } else {
+            $this->notifyContacts($workLog, 'status_change', $newStatus, $validated['notify_contact_ids'] ?? []);
         }
 
         return response()->json([
@@ -191,6 +205,63 @@ class WorkLogController extends Controller
         $workLog->delete();
 
         return response()->json(['success' => true, 'message' => 'Work log deleted successfully']);
+    }
+
+    private function notifyContacts(WorkLog $workLog, string $event, string $statusName, array $specificIds = []): void
+    {
+        if (!empty($specificIds)) {
+            $contacts = \App\Models\EmailContact::whereIn('id', $specificIds)->where('is_active', true)->get();
+        } else {
+            $field    = $event === 'complete' ? 'notify_on_complete' : 'notify_on_status_change';
+            $contacts = \App\Models\EmailContact::where($field, true)->where('is_active', true)->get();
+        }
+
+        if ($contacts->isEmpty()) return;
+
+        $appName  = config('app.name', 'KRA Tracker');
+        $appUrl   = rtrim(config('app.url'), '/');
+        $user     = auth()->user();
+        $subject  = $event === 'complete'
+            ? "✅ Task Completed — {$workLog->title}"
+            : "🔄 Task Status Updated — {$workLog->title}";
+
+        $kra    = optional($workLog->subKra->kra)->name ?? '—';
+        $subKra = optional($workLog->subKra)->name ?? '—';
+        $score  = number_format($workLog->score_calculated, 1);
+        $dur    = ($workLog->actual_duration ?? 0) . 'h';
+
+        $html = "<!DOCTYPE html><html><body style='margin:0;padding:0;background:#f8fafc;font-family:Arial,sans-serif;'>
+        <div style='max-width:540px;margin:24px auto;background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;'>
+          <div style='background:#0d9488;padding:18px 24px;'>
+            <div style='color:#fff;font-size:17px;font-weight:700;'>{$appName}</div>
+            <div style='color:#99f6e4;font-size:11px;margin-top:2px;'>Task Status Notification</div>
+          </div>
+          <div style='padding:20px 24px;'>
+            <h2 style='margin:0 0 12px;color:#1e293b;font-size:15px;'>{$subject}</h2>
+            <table style='width:100%;border-collapse:collapse;font-size:12px;'>
+              <tr><td style='padding:6px 0;color:#64748b;width:120px;'>Employee</td><td style='padding:6px 0;font-weight:600;color:#334155;'>{$user->name}</td></tr>
+              <tr><td style='padding:6px 0;color:#64748b;'>Task</td><td style='padding:6px 0;font-weight:600;color:#334155;'>{$workLog->title}</td></tr>
+              <tr><td style='padding:6px 0;color:#64748b;'>KRA / Sub-KRA</td><td style='padding:6px 0;color:#334155;'>{$kra} › {$subKra}</td></tr>
+              <tr><td style='padding:6px 0;color:#64748b;'>Status</td><td style='padding:6px 0;'><span style='background:#dcfce7;color:#166534;padding:2px 8px;border-radius:10px;font-weight:600;font-size:11px;'>{$statusName}</span></td></tr>
+              <tr><td style='padding:6px 0;color:#64748b;'>Score</td><td style='padding:6px 0;font-weight:700;color:#0d9488;'>{$score}%</td></tr>
+              <tr><td style='padding:6px 0;color:#64748b;'>Duration</td><td style='padding:6px 0;color:#334155;'>{$dur}</td></tr>
+              <tr><td style='padding:6px 0;color:#64748b;'>Date</td><td style='padding:6px 0;color:#334155;'>{$workLog->log_date->format('d M Y')}</td></tr>
+            </table>
+          </div>
+          <div style='padding:12px 24px;background:#f8fafc;border-top:1px solid #f1f5f9;font-size:10px;color:#94a3b8;'>
+            Automated notification from {$appName}
+          </div>
+        </div></body></html>";
+
+        foreach ($contacts as $contact) {
+            try {
+                \Mail::send([], [], function (\Illuminate\Mail\Message $mail) use ($contact, $subject, $html) {
+                    $mail->to($contact->email, $contact->name)->subject($subject)->html($html);
+                });
+            } catch (\Throwable $e) {
+                \Log::error("Contact notify failed to {$contact->email}: " . $e->getMessage());
+            }
+        }
     }
 
     public function storeFeedback(Request $request, WorkLog $workLog)

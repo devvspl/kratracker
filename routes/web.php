@@ -6,6 +6,8 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\WorkLogController;
 use App\Http\Controllers\ExportController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\ReportController;
+use App\Http\Controllers\EmailContactController;
 use App\Http\Controllers\Masters\KraController;
 use App\Http\Controllers\Masters\SubKraController;
 use App\Http\Controllers\Masters\LogicController;
@@ -57,6 +59,21 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/export/analytics-pdf', [ExportController::class, 'exportAnalyticsPdf'])->name('export.analytics-pdf');
     
     // Master Data Routes (Admin only)
+    Route::middleware(['role:Admin|Manager'])->group(function () {
+        Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
+        Route::post('/reports', [ReportController::class, 'store'])->name('reports.store');
+        Route::put('/reports/{reportConfig}', [ReportController::class, 'update'])->name('reports.update');
+        Route::delete('/reports/{reportConfig}', [ReportController::class, 'destroy'])->name('reports.destroy');
+        Route::post('/reports/send-now', [ReportController::class, 'sendNow'])->name('reports.send-now');
+
+        // Email Contacts
+        Route::get('/api/contacts', [EmailContactController::class, 'index'])->name('contacts.index');
+        Route::post('/contacts', [EmailContactController::class, 'store'])->name('contacts.store');
+        Route::put('/contacts/{emailContact}', [EmailContactController::class, 'update'])->name('contacts.update');
+        Route::delete('/contacts/{emailContact}', [EmailContactController::class, 'destroy'])->name('contacts.destroy');
+        Route::post('/contacts/send-custom', [EmailContactController::class, 'sendCustom'])->name('contacts.send-custom');
+        Route::post('/contacts/send-report', [EmailContactController::class, 'sendReport'])->name('contacts.send-report');
+    });
     Route::middleware(['role:Admin'])->prefix('masters')->name('masters.')->group(function () {
         Route::resource('kras', KraController::class);
         Route::resource('sub-kras', SubKraController::class);

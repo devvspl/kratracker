@@ -69,7 +69,7 @@
                             </a>
                             @role('Admin')
                             <div class="relative" x-data="{ open: false }">
-                                <button @click="open = !open" class="flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all {{ request()->routeIs('masters.*') ? 'bg-teal-50 text-teal-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
+                                <button @click="open = !open" class="flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all {{ request()->routeIs('masters.kras.*') || request()->routeIs('masters.sub-kras.*') || request()->routeIs('masters.logics.*') || request()->routeIs('masters.task-statuses.*') || request()->routeIs('masters.priorities.*') || request()->routeIs('masters.applications.*') || request()->routeIs('masters.application-modules.*') ? 'bg-teal-50 text-teal-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
                                     <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
@@ -109,10 +109,25 @@
                                         <svg class="w-4 h-4 mr-2 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"/></svg>
                                         Modules
                                     </a>
-                                    <div class="my-1 border-t border-slate-100"></div>
+                                </div>
+                            </div>
+
+                            {{-- Admin: Users & Reports --}}
+                            <div class="relative" x-data="{ open: false }">
+                                <button @click="open = !open" class="flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all {{ request()->routeIs('masters.users.*') || request()->routeIs('reports.*') ? 'bg-teal-50 text-teal-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
+                                    <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                                    Admin
+                                    <svg class="w-3.5 h-3.5 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                </button>
+                                <div x-show="open" @click.away="open = false" x-cloak class="absolute left-0 mt-2 w-52 bg-white rounded-lg shadow-lg border border-slate-200 py-1 overflow-hidden">
+                                    <p class="px-3 pt-2 pb-1 text-xs font-semibold text-slate-400 uppercase tracking-wider">Admin</p>
                                     <a href="{{ route('masters.users.index') }}" class="flex items-center px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 {{ request()->routeIs('masters.users.*') ? 'bg-teal-50 text-teal-700' : '' }}">
                                         <svg class="w-4 h-4 mr-2 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
                                         Users
+                                    </a>
+                                    <a href="{{ route('reports.index') }}" class="flex items-center px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 {{ request()->routeIs('reports.*') ? 'bg-teal-50 text-teal-700' : '' }}">
+                                        <svg class="w-4 h-4 mr-2 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+                                        Reports & Contacts
                                     </a>
                                 </div>
                             </div>
@@ -285,9 +300,16 @@
                             <a href="{{ route('masters.priorities.index') }}" class="block pl-10 pr-4 py-2 text-sm font-medium {{ request()->routeIs('masters.priorities.*') ? 'text-teal-700 bg-teal-50 border-l-2 border-teal-500' : 'text-slate-600 hover:text-slate-900 border-l-2 border-transparent' }}">Priorities</a>
                             <a href="{{ route('masters.applications.index') }}" class="block pl-10 pr-4 py-2 text-sm font-medium {{ request()->routeIs('masters.applications.*') ? 'text-teal-700 bg-teal-50 border-l-2 border-teal-500' : 'text-slate-600 hover:text-slate-900 border-l-2 border-transparent' }}">Applications</a>
                             <a href="{{ route('masters.application-modules.index') }}" class="block pl-10 pr-4 py-2 text-sm font-medium {{ request()->routeIs('masters.application-modules.*') ? 'text-teal-700 bg-teal-50 border-l-2 border-teal-500' : 'text-slate-600 hover:text-slate-900 border-l-2 border-transparent' }}">Modules</a>
-                            <a href="{{ route('masters.users.index') }}" class="block pl-10 pr-4 py-2 text-sm font-medium {{ request()->routeIs('masters.users.*') ? 'text-teal-700 bg-teal-50 border-l-2 border-teal-500' : 'text-slate-600 hover:text-slate-900 border-l-2 border-transparent' }}">Users</a>
                         </div>
                     </div>
+                    <a href="{{ route('masters.users.index') }}" class="flex items-center pl-3 pr-4 py-2 border-l-4 text-base font-medium {{ request()->routeIs('masters.users.*') ? 'bg-teal-50 border-teal-500 text-teal-700' : 'border-transparent text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                        Users
+                    </a>
+                    <a href="{{ route('reports.index') }}" class="flex items-center pl-3 pr-4 py-2 border-l-4 text-base font-medium {{ request()->routeIs('reports.*') ? 'bg-teal-50 border-teal-500 text-teal-700' : 'border-transparent text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+                        Reports & Contacts
+                    </a>
                     @endrole
                 </div>
             </div>

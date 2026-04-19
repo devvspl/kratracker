@@ -15,7 +15,7 @@ class ExportController extends Controller
 {
     public function exportWorkLogs(Request $request)
     {
-        $query = WorkLog::with(['subKra.kra', 'application', 'priority', 'status', 'user'])
+        $query = WorkLog::with(['subKra.kra', 'application', 'module', 'priority', 'status', 'feedbacks', 'user'])
             ->where('user_id', auth()->id());
 
         // Apply filters
@@ -40,10 +40,11 @@ class ExportController extends Controller
         $year = $request->get('year', Carbon::now()->year);
         $month = $request->get('month', Carbon::now()->month);
 
-        $kras = Kra::with(['subKras.workLogs' => function($q) use ($userId, $year, $month) {
+        $kras = Kra::with(['subKras.logic', 'subKras.workLogs' => function($q) use ($userId, $year, $month) {
             $q->where('user_id', $userId)
               ->whereYear('log_date', $year)
-              ->whereMonth('log_date', $month);
+              ->whereMonth('log_date', $month)
+              ->with(['status', 'priority', 'feedbacks']);
         }])->get();
 
         return Excel::download(
@@ -64,7 +65,7 @@ class ExportController extends Controller
             'workLogs' => WorkLog::where('user_id', $user->id)
                 ->whereMonth('log_date', $currentMonth)
                 ->whereYear('log_date', $currentYear)
-                ->with(['subKra.kra', 'status'])
+                ->with(['subKra.kra', 'status', 'priority'])
                 ->get(),
         ];
 

@@ -17,7 +17,8 @@ class PriorityController extends Controller
             ? Priority::ownedByUser()->orderBy('level', 'desc')->get()
             : Priority::orderBy('level', 'desc')->get();
 
-        return view('masters.priorities', compact('priorities'));
+        $baseUrl = $this->isUserScoped() ? '/my-kra/priorities' : '/masters/priorities';
+        return view('masters.priorities', compact('priorities', 'baseUrl'));
     }
 
     public function store(Request $request)

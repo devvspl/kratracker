@@ -18,7 +18,8 @@ class KraController extends Controller
             ? $query->ownedByUser()->latest()->get()
             : $query->latest()->get();
 
-        return view('masters.kras', compact('kras'));
+        $baseUrl = $this->isUserScoped() ? '/my-kra/kras' : '/masters/kras';
+        return view('masters.kras', compact('kras', 'baseUrl'));
     }
 
     public function store(Request $request)

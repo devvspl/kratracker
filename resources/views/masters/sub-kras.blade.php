@@ -16,7 +16,7 @@
     async submit(){
         this.loading=true;
         const isEdit=this.mode==='edit';
-        const url=isEdit?'/masters/sub-kras/'+this.form._id:'/masters/sub-kras';
+        const url=isEdit?'{{ $baseUrl }}/'+this.form._id:'{{ $baseUrl }}';
         const body={ kra_id:this.form.kra_id, name:this.form.name, weightage:this.form.weightage, unit:this.form.unit, measure_type:this.form.measure_type, logic_id:this.form.logic_id, review_period:this.form.review_period, description:this.form.description, is_active:this.form.is_active };
         try{
             const res=await fetch(url,{method:isEdit?'PUT':'POST',headers:{'Content-Type':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name=csrf-token]').content},body:JSON.stringify(body)});
@@ -29,7 +29,7 @@
     async deleteItem(){
         this.loading=true;
         try{
-            const res=await fetch('/masters/sub-kras/'+this.deleteId,{method:'DELETE',headers:{'X-CSRF-TOKEN':document.querySelector('meta[name=csrf-token]').content}});
+            const res=await fetch('{{ $baseUrl }}/'+this.deleteId,{method:'DELETE',headers:{'X-CSRF-TOKEN':document.querySelector('meta[name=csrf-token]').content}});
             const data=await res.json();
             if(data.success){window.showToast(data.message,'success');this.showDelete=false;setTimeout(()=>location.reload(),800);}
             else{window.showToast(data.message||'Error','error');}

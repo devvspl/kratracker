@@ -1,4 +1,4 @@
-@extends('layouts.app')
+﻿@extends('layouts.app')
 @section('content')
 
 @php $json = json_encode($logics->toArray()); @endphp
@@ -21,7 +21,7 @@
     async submit() {
         this.loading=true;
         const isEdit=this.mode==='edit';
-        const url=isEdit ? '/masters/logics/'+this.form._id : '/masters/logics';
+        const url=isEdit ? '{{ $baseUrl }}/'+this.form._id : '{{ $baseUrl }}';
         const body={ name:this.form.name, description:this.form.description, scoring_type:this.form.scoring_type };
         try {
             const res=await fetch(url,{method:isEdit?'PUT':'POST',headers:{'Content-Type':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name=csrf-token]').content},body:JSON.stringify(body)});
@@ -34,7 +34,7 @@
     async deleteItem() {
         this.loading=true;
         try {
-            const res=await fetch('/masters/logics/'+this.deleteId,{method:'DELETE',headers:{'X-CSRF-TOKEN':document.querySelector('meta[name=csrf-token]').content}});
+            const res=await fetch('{{ $baseUrl }}/'+this.deleteId,{method:'DELETE',headers:{'X-CSRF-TOKEN':document.querySelector('meta[name=csrf-token]').content}});
             const data=await res.json();
             if(data.success){window.showToast(data.message,'success');this.showDelete=false;setTimeout(()=>location.reload(),800);}
             else{window.showToast(data.message||'Error','error');}

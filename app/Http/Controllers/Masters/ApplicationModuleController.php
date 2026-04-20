@@ -13,7 +13,8 @@ class ApplicationModuleController extends Controller
     {
         $modules      = ApplicationModule::with('application')->ownedByUser()->latest()->get();
         $applications = Application::forCurrentUser()->where('is_active', true)->orderBy('name')->get();
-        return view('masters.application-modules', compact('modules', 'applications'));
+        $baseUrl = $this->isUserScoped() ? '/my-kra/application-modules' : '/masters/application-modules';
+        return view('masters.application-modules', compact('modules', 'applications', 'baseUrl'));
     }
 
     public function byApplication(Request $request)

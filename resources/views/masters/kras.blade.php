@@ -1,4 +1,4 @@
-@extends('layouts.app')
+﻿@extends('layouts.app')
 @section('content')
 
 @php $kraJson = json_encode($kras->toArray()); @endphp
@@ -29,7 +29,7 @@
     async submit() {
         this.loading = true;
         const isEdit = this.mode === 'edit';
-        const url    = isEdit ? '/masters/kras/' + this.form._id : '/masters/kras';
+        const url    = isEdit ? '{{ $baseUrl }}/' + this.form._id : '{{ $baseUrl }}';
         const method = isEdit ? 'PUT' : 'POST';
         const body   = { name: this.form.name, total_weightage: this.form.total_weightage, description: this.form.description, is_active: this.form.is_active };
         try {
@@ -44,7 +44,7 @@
     async deleteItem() {
         this.loading = true;
         try {
-            const res  = await fetch('/masters/kras/' + this.deleteId, { method: 'DELETE', headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content } });
+            const res  = await fetch('{{ $baseUrl }}/' + this.deleteId, { method: 'DELETE', headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content } });
             const data = await res.json();
             if (data.success) { window.showToast(data.message, 'success'); this.showDelete = false; setTimeout(() => location.reload(), 800); }
             else { window.showToast(data.message || 'Error', 'error'); }

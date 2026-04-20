@@ -17,7 +17,8 @@ class TaskStatusController extends Controller
             ? TaskStatus::ownedByUser()->orderBy('sort_order')->get()
             : TaskStatus::orderBy('sort_order')->get();
 
-        return view('masters.task-statuses', compact('statuses'));
+        $baseUrl = $this->isUserScoped() ? '/my-kra/task-statuses' : '/masters/task-statuses';
+        return view('masters.task-statuses', compact('statuses', 'baseUrl'));
     }
 
     public function store(Request $request)

@@ -17,7 +17,8 @@ class LogicController extends Controller
             ? Logic::withCount('subKras')->ownedByUser()->latest()->get()
             : Logic::withCount('subKras')->latest()->get();
 
-        return view('masters.logics', compact('logics'));
+        $baseUrl = $this->isUserScoped() ? '/my-kra/logics' : '/masters/logics';
+        return view('masters.logics', compact('logics', 'baseUrl'));
     }
 
     public function store(Request $request)

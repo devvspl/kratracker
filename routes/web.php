@@ -59,7 +59,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/export/kra-summary', [ExportController::class, 'exportKraSummary'])->name('export.kra-summary');
     Route::get('/export/analytics-pdf', [ExportController::class, 'exportAnalyticsPdf'])->name('export.analytics-pdf');
     
-    // Master Data Routes (Admin only)
+    // Reports & Contacts — Admin or Manager
     Route::middleware(['role:Admin|Manager'])->group(function () {
         Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
         Route::post('/reports', [ReportController::class, 'store'])->name('reports.store');

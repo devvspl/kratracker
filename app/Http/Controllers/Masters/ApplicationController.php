@@ -17,7 +17,9 @@ class ApplicationController extends Controller
             ? Application::ownedByUser()->latest()->get()
             : Application::latest()->get();
 
-        return view('masters.applications', compact('applications'));
+        $baseUrl = $this->isUserScoped() ? '/my-kra/applications' : '/masters/applications';
+
+        return view('masters.applications', compact('applications', 'baseUrl'));
     }
 
     public function store(Request $request)

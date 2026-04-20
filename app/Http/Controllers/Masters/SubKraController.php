@@ -23,7 +23,8 @@ class SubKraController extends Controller
             ? Logic::forCurrentUser()->get()
             : Logic::all();
 
-        return view('masters.sub-kras', compact('subKras', 'kras', 'logics'));
+        $baseUrl = $this->isUserScoped() ? '/my-kra/sub-kras' : '/masters/sub-kras';
+        return view('masters.sub-kras', compact('subKras', 'kras', 'logics', 'baseUrl'));
     }
 
     public function store(Request $request)

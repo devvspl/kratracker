@@ -5,10 +5,13 @@ namespace App\Http\Controllers\Masters;
 use App\Http\Controllers\Controller;
 use App\Models\Application;
 use App\Models\ApplicationModule;
+use App\Traits\ScopedMasterController;
 use Illuminate\Http\Request;
 
 class ApplicationModuleController extends Controller
 {
+    use ScopedMasterController;
+    
     public function index()
     {
         $modules      = ApplicationModule::with('application')->ownedByUser()->latest()->get();

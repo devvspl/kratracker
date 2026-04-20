@@ -56,6 +56,21 @@ class DatabaseSeeder extends Seeder
         $logic1 = Logic::where('scoring_type', 'proportional')->whereNull('user_id')->first();
         $logic3 = Logic::where('scoring_type', 'binary')->whereNull('user_id')->first();
 
+        // Dev's personal logics
+        $devLogic1 = Logic::create([
+            'user_id'      => $dev->id,
+            'name'         => 'Proportional',
+            'description'  => 'Score = (achievement / target) × 100, capped at 100%',
+            'scoring_type' => 'proportional',
+        ]);
+
+        $devLogic3 = Logic::create([
+            'user_id'      => $dev->id,
+            'name'         => 'Binary',
+            'description'  => 'Score = 100 if achievement ≥ target, else 0',
+            'scoring_type' => 'binary',
+        ]);
+
         // Dev's personal KRAs (user_id = dev->id)
         $kra1 = Kra::create([
             'user_id'         => $dev->id,

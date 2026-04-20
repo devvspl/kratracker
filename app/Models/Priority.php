@@ -10,11 +10,7 @@ class Priority extends Model
 {
     use UserScoped;
 
-    protected $fillable = ['user_id', 'name', 'color_class', 'level', 'is_active'];
-
-    protected $casts = [
-        'is_active' => 'boolean',
-    ];
+    protected $fillable = ['user_id', 'name'];
 
     public function workLogs()
     {

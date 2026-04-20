@@ -61,6 +61,7 @@
                 sub_kra_id: '', application_id: '', module_id: '', title: '', description: '',
                 log_date: new Date().toISOString().split('T')[0],
                 priority_id: '{{ $defaultPriorityId }}', status_id: '', achievement_value: 1,
+                start_time: '', end_time: '',
                 total_duration: 0, actual_duration: 0, test_status: '', testing_details: '',
                 remark: '', notify_contact_ids: [], notify_user_ids: []
             },
@@ -93,6 +94,7 @@
                 this.formData = { sub_kra_id:'', application_id:'', module_id:'', title:'', description:'',
                     log_date: new Date().toISOString().split('T')[0],
                     priority_id:'{{ $defaultPriorityId }}', status_id:'', achievement_value:1,
+                    start_time:'', end_time:'',
                     total_duration:0, actual_duration:0, test_status:'', testing_details:'',
                     remark:'', notify_contact_ids:[], notify_user_ids:[] };
                 this.showModal = true;
@@ -112,6 +114,7 @@
                             log_date: (d.log_date||'').substring(0,10),
                             priority_id: d.priority_id, status_id: d.status_id,
                             achievement_value: d.achievement_value||1,
+                            start_time: (d.start_time||'').substring(0,5), end_time: (d.end_time||'').substring(0,5),
                             total_duration: d.total_duration||0, actual_duration: d.actual_duration||0,
                             test_status: d.test_status||'', testing_details: d.testing_details||'',
                             remark: d.remark||'', notify_contact_ids:[], notify_user_ids:[]
@@ -435,8 +438,7 @@
                                 @endif
                             </td>
                             <td class="px-4 py-3">
-                                <span
-                                    class="px-2 py-0.5 text-xs rounded-full font-medium bg-{{ $log->status->color_class }}-100 text-{{ $log->status->color_class }}-700">{{ $log->status->name }}</span>
+                                <span class="px-2 py-0.5 text-xs rounded-full font-medium bg-slate-100 text-slate-700">{{ $log->status->name }}</span>
                             </td>
                             <td class="px-4 py-3">
                                 <div class="flex items-center gap-1">
@@ -707,7 +709,19 @@
                             <div x-show="activeTab === 'metrics'" x-transition:enter="transition ease-out duration-300"
                                 x-transition:enter-start="opacity-0 translate-y-2"
                                 x-transition:enter-end="opacity-100 translate-y-0" style="display: none;">
-                                <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                <div class="grid grid-cols-1 gap-3 md:grid-cols-2 mb-3">
+                                    <div>
+                                        <label class="block text-xs font-medium text-slate-700 mb-1">Start Time</label>
+                                        <input type="text" x-init="flatpickr($el, { enableTime: true, noCalendar: true, dateFormat: 'H:i' })" x-model="formData.start_time"
+                                            class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none transition-all bg-white cursor-pointer" placeholder="Select Start Time">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium text-slate-700 mb-1">End Time</label>
+                                        <input type="text" x-init="flatpickr($el, { enableTime: true, noCalendar: true, dateFormat: 'H:i' })" x-model="formData.end_time"
+                                            class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none transition-all bg-white cursor-pointer" placeholder="Select End Time">
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-1 gap-3 md:grid-cols-3">
                                     <div>
                                         <label class="block text-xs font-medium text-slate-700 mb-1">Total Duration
                                             (Hours)</label>

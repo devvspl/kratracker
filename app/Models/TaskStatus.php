@@ -10,11 +10,7 @@ class TaskStatus extends Model
 {
     use UserScoped;
 
-    protected $fillable = ['user_id', 'name', 'color_class', 'sort_order', 'is_active'];
-
-    protected $casts = [
-        'is_active' => 'boolean',
-    ];
+    protected $fillable = ['user_id', 'name', 'sort_order'];
 
     public function workLogs()
     {

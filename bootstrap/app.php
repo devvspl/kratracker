@@ -16,6 +16,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'permission'       => \Spatie\Permission\Middleware\PermissionMiddleware::class,
             'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
             'can_manage_own_kra' => \App\Http\Middleware\CanManageOwnKra::class,
+            'can_access_reports' => \App\Http\Middleware\CanAccessReports::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

@@ -38,8 +38,8 @@ class WorkLogController extends Controller
         $workLogs    = $query->latest('log_date')->paginate(20);
         $subKras     = SubKra::with('kra')->where('is_active', true)->whereHas('kra', fn($q) => $q->forCurrentUser())->get();
         $applications= Application::forCurrentUser()->where('is_active', true)->get();
-        $priorities  = Priority::forCurrentUser()->where('is_active', true)->orderBy('level', 'desc')->get();
-        $statuses    = TaskStatus::forCurrentUser()->where('is_active', true)->orderBy('sort_order')->get();
+        $priorities  = Priority::forCurrentUser()->get();
+        $statuses    = TaskStatus::forCurrentUser()->orderBy('sort_order')->get();
         $modules     = ApplicationModule::forCurrentUser()->where('is_active', true)->orderBy('name')->get();
         $contacts    = EmailContact::where('is_active', true)->orderBy('name')->get(['id','name','email']);
         $notifyUsers = \App\Models\User::orderBy('name')->get(['id','name','email']);
@@ -121,6 +121,8 @@ class WorkLogController extends Controller
             'priority_id'      => 'nullable|exists:priorities,id',
             'status_id'        => 'required|exists:task_statuses,id',
             'achievement_value'=> 'nullable|numeric|min:0',
+            'start_time'       => 'nullable',
+            'end_time'         => 'nullable',
             'total_duration'   => 'nullable|numeric|min:0',
             'actual_duration'  => 'nullable|numeric|min:0',
             'test_status'      => 'nullable|string|max:100',
@@ -161,6 +163,8 @@ class WorkLogController extends Controller
             'status_id'            => $validated['status_id'],
             'achievement_value'    => $validated['achievement_value'] ?? 1,
             'target_value_snapshot'=> $targetValue,
+            'start_time'           => $validated['start_time'] ?? null,
+            'end_time'             => $validated['end_time'] ?? null,
             'total_duration'       => $validated['total_duration'] ?? 0,
             'actual_duration'      => $validated['actual_duration'] ?? 0,
             'duration_difference'  => ($validated['total_duration'] ?? 0) - ($validated['actual_duration'] ?? 0),
@@ -220,6 +224,8 @@ class WorkLogController extends Controller
             'priority_id'      => 'nullable|exists:priorities,id',
             'status_id'        => 'required|exists:task_statuses,id',
             'achievement_value'=> 'nullable|numeric|min:0',
+            'start_time'       => 'nullable',
+            'end_time'         => 'nullable',
             'total_duration'   => 'nullable|numeric|min:0',
             'actual_duration'  => 'nullable|numeric|min:0',
             'test_status'      => 'nullable|string|max:100',

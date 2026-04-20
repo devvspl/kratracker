@@ -10,7 +10,7 @@ class WorkLog extends Model
         'user_id', 'sub_kra_id', 'application_id', 'module_id', 'title', 'description',
         'log_date', 'priority_id', 'status_id', 'achievement_value',
         'target_value_snapshot', 'score_calculated', 'logic_applied',
-        'total_duration', 'actual_duration', 'duration_difference',
+        'start_time', 'end_time', 'total_duration', 'actual_duration', 'duration_difference',
         'test_status', 'testing_details', 'remark', 'attachments',
     ];
 
@@ -87,10 +87,10 @@ class WorkLog extends Model
 
         // ── 3. Priority bonus (only if task has meaningful progress) ──────────
         if ($statusMultiplier > 0) {
-            $priorityLevel = optional($this->priority)->level ?? 0;
-            $score += match((int) $priorityLevel) {
-                3 => 10,  // High
-                2 => 5,   // Medium
+            $priorityName = optional($this->priority)->name ?? '';
+            $score += match($priorityName) {
+                'High', 'Critical' => 10,
+                'Medium' => 5,
                 default => 0,
             };
 

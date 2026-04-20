@@ -80,8 +80,8 @@ class DatabaseSeeder extends Seeder
             'is_active'       => true,
         ]);
 
-        SubKra::create(['kra_id' => $kra1->id, 'name' => 'New Development',   'weightage' => 15, 'unit' => '%', 'measure_type' => 'Percentage', 'logic_id' => $logic1->id, 'review_period' => 'Quarterly', 'description' => 'New feature development',          'is_active' => true]);
-        SubKra::create(['kra_id' => $kra1->id, 'name' => 'Change Request',    'weightage' => 20, 'unit' => '%', 'measure_type' => 'Percentage', 'logic_id' => $logic1->id, 'review_period' => 'Monthly',   'description' => 'Change requests and modifications', 'is_active' => true]);
+        SubKra::create(['kra_id' => $kra1->id, 'name' => 'New Development',   'weightage' => 15, 'unit' => '%', 'measure_type' => 'Percentage', 'logic_id' => $devLogic1->id, 'review_period' => 'Quarterly', 'description' => 'New feature development',          'is_active' => true]);
+        SubKra::create(['kra_id' => $kra1->id, 'name' => 'Change Request',    'weightage' => 20, 'unit' => '%', 'measure_type' => 'Percentage', 'logic_id' => $devLogic1->id, 'review_period' => 'Monthly',   'description' => 'Change requests and modifications', 'is_active' => true]);
 
         $kra2 = Kra::create([
             'user_id'         => $dev->id,
@@ -91,10 +91,10 @@ class DatabaseSeeder extends Seeder
             'is_active'       => true,
         ]);
 
-        SubKra::create(['kra_id' => $kra2->id, 'name' => 'Application Stability & Maintenance',      'weightage' => 15, 'unit' => '%',  'measure_type' => 'Percentage', 'logic_id' => $logic1->id, 'review_period' => 'Quarterly', 'description' => 'Application stability and maintenance', 'is_active' => true]);
-        SubKra::create(['kra_id' => $kra2->id, 'name' => 'User Queries & Team Support',              'weightage' => 15, 'unit' => '%',  'measure_type' => 'Percentage', 'logic_id' => $logic1->id, 'review_period' => 'Monthly',   'description' => 'User support and query resolution',     'is_active' => true]);
-        SubKra::create(['kra_id' => $kra2->id, 'name' => 'Documentation, Backup & Code Management', 'weightage' => 15, 'unit' => 'Day','measure_type' => 'Days',       'logic_id' => $logic3->id, 'review_period' => 'Monthly',   'description' => 'Documentation and code management',     'is_active' => true]);
-        SubKra::create(['kra_id' => $kra2->id, 'name' => 'Cross-Application Support',               'weightage' => 10, 'unit' => '%',  'measure_type' => 'Percentage', 'logic_id' => $logic3->id, 'review_period' => 'Quarterly', 'description' => 'Support across multiple applications',  'is_active' => true]);
+        SubKra::create(['kra_id' => $kra2->id, 'name' => 'Application Stability & Maintenance',      'weightage' => 15, 'unit' => '%',  'measure_type' => 'Percentage', 'logic_id' => $devLogic1->id, 'review_period' => 'Quarterly', 'description' => 'Application stability and maintenance', 'is_active' => true]);
+        SubKra::create(['kra_id' => $kra2->id, 'name' => 'User Queries & Team Support',              'weightage' => 15, 'unit' => '%',  'measure_type' => 'Percentage', 'logic_id' => $devLogic1->id, 'review_period' => 'Monthly',   'description' => 'User support and query resolution',     'is_active' => true]);
+        SubKra::create(['kra_id' => $kra2->id, 'name' => 'Documentation, Backup & Code Management', 'weightage' => 15, 'unit' => 'Day','measure_type' => 'Days',       'logic_id' => $devLogic3->id, 'review_period' => 'Monthly',   'description' => 'Documentation and code management',     'is_active' => true]);
+        SubKra::create(['kra_id' => $kra2->id, 'name' => 'Cross-Application Support',               'weightage' => 10, 'unit' => '%',  'measure_type' => 'Percentage', 'logic_id' => $devLogic3->id, 'review_period' => 'Quarterly', 'description' => 'Support across multiple applications',  'is_active' => true]);
 
         $kra3 = Kra::create([
             'user_id'         => $dev->id,
@@ -104,15 +104,15 @@ class DatabaseSeeder extends Seeder
             'is_active'       => true,
         ]);
 
-        SubKra::create(['kra_id' => $kra3->id, 'name' => 'Learning & Development', 'weightage' => 10, 'unit' => '%', 'measure_type' => 'Percentage', 'logic_id' => $logic1->id, 'review_period' => 'Annually', 'description' => 'Learning and skill development', 'is_active' => true]);
+        SubKra::create(['kra_id' => $kra3->id, 'name' => 'Learning & Development', 'weightage' => 10, 'unit' => '%', 'measure_type' => 'Percentage', 'logic_id' => $devLogic1->id, 'review_period' => 'Annually', 'description' => 'Learning and skill development', 'is_active' => true]);
 
         // Dev's personal task statuses
         $statuses = [
-            ['name' => 'Not Started', 'color_class' => 'slate',  'sort_order' => 1],
-            ['name' => 'In Progress', 'color_class' => 'blue',   'sort_order' => 2],
-            ['name' => 'Completed',   'color_class' => 'green',  'sort_order' => 3],
-            ['name' => 'On Hold',     'color_class' => 'yellow', 'sort_order' => 4],
-            ['name' => 'Cancelled',   'color_class' => 'red',    'sort_order' => 5],
+            ['name' => 'Not Started', 'sort_order' => 1],
+            ['name' => 'In Progress', 'sort_order' => 2],
+            ['name' => 'Completed',   'sort_order' => 3],
+            ['name' => 'On Hold',     'sort_order' => 4],
+            ['name' => 'Cancelled',   'sort_order' => 5],
         ];
         foreach ($statuses as $s) {
             TaskStatus::create([...$s, 'user_id' => $dev->id]);
@@ -120,10 +120,10 @@ class DatabaseSeeder extends Seeder
 
         // Dev's personal priorities
         $priorities = [
-            ['name' => 'High',   'color_class' => 'red',    'level' => 3],
-            ['name' => 'Medium', 'color_class' => 'yellow', 'level' => 2],
-            ['name' => 'Low',    'color_class' => 'green',  'level' => 1],
-            ['name' => 'Common', 'color_class' => 'slate',  'level' => 0],
+            ['name' => 'High'],
+            ['name' => 'Medium'],
+            ['name' => 'Low'],
+            ['name' => 'Common'],
         ];
         foreach ($priorities as $p) {
             Priority::create([...$p, 'user_id' => $dev->id]);

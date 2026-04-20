@@ -59,8 +59,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/export/kra-summary', [ExportController::class, 'exportKraSummary'])->name('export.kra-summary');
     Route::get('/export/analytics-pdf', [ExportController::class, 'exportAnalyticsPdf'])->name('export.analytics-pdf');
     
-    // Reports & Contacts — Admin or Manager
-    Route::middleware(['role:Admin|Manager'])->group(function () {
+    // Reports & Contacts — Admin, Manager, or users with can_manage_own_kra
+    Route::middleware([\App\Http\Middleware\CanAccessReports::class])->group(function () {
         Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
         Route::post('/reports', [ReportController::class, 'store'])->name('reports.store');
         Route::put('/reports/{reportConfig}', [ReportController::class, 'update'])->name('reports.update');

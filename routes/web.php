@@ -85,6 +85,20 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::resource('application-modules', ApplicationModuleController::class);
         Route::resource('users', UserController::class)->only(['index', 'store', 'update', 'destroy']);
     });
+
+    // Self-service KRA config — for users with can_manage_own_kra = true
+    Route::middleware([\App\Http\Middleware\CanManageOwnKra::class])
+        ->prefix('my-kra')
+        ->name('my-kra.')
+        ->group(function () {
+            Route::resource('kras', KraController::class);
+            Route::resource('sub-kras', SubKraController::class);
+            Route::resource('logics', LogicController::class);
+            Route::resource('task-statuses', TaskStatusController::class);
+            Route::resource('priorities', PriorityController::class);
+            Route::resource('applications', ApplicationController::class);
+            Route::resource('application-modules', ApplicationModuleController::class);
+        });
 });
 
 require __DIR__.'/auth.php';

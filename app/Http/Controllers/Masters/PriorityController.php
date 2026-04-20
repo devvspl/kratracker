@@ -4,13 +4,19 @@ namespace App\Http\Controllers\Masters;
 
 use App\Http\Controllers\Controller;
 use App\Models\Priority;
+use App\Traits\ScopedMasterController;
 use Illuminate\Http\Request;
 
 class PriorityController extends Controller
 {
+    use ScopedMasterController;
+
     public function index()
     {
-        $priorities = Priority::orderBy('level', 'desc')->get();
+        $priorities = $this->isUserScoped()
+            ? Priority::ownedByUser()->orderBy('level', 'desc')->get()
+            : Priority::orderBy('level', 'desc')->get();
+
         return view('masters.priorities', compact('priorities'));
     }
 
@@ -22,7 +28,7 @@ class PriorityController extends Controller
             'level'       => 'required|integer|min:1',
             'is_active'   => 'boolean',
         ]);
-        $priority = Priority::create($validated);
+        $priority = Priority::create([...$validated, 'user_id' => $this->scopedUserId()]);
         return response()->json(['success' => true, 'message' => 'Priority created successfully', 'data' => $priority]);
     }
 

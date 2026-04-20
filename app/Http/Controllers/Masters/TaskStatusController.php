@@ -4,13 +4,19 @@ namespace App\Http\Controllers\Masters;
 
 use App\Http\Controllers\Controller;
 use App\Models\TaskStatus;
+use App\Traits\ScopedMasterController;
 use Illuminate\Http\Request;
 
 class TaskStatusController extends Controller
 {
+    use ScopedMasterController;
+
     public function index()
     {
-        $statuses = TaskStatus::orderBy('sort_order')->get();
+        $statuses = $this->isUserScoped()
+            ? TaskStatus::ownedByUser()->orderBy('sort_order')->get()
+            : TaskStatus::orderBy('sort_order')->get();
+
         return view('masters.task-statuses', compact('statuses'));
     }
 
@@ -22,7 +28,7 @@ class TaskStatusController extends Controller
             'sort_order'  => 'required|integer|min:0',
             'is_active'   => 'boolean',
         ]);
-        $status = TaskStatus::create($validated);
+        $status = TaskStatus::create([...$validated, 'user_id' => $this->scopedUserId()]);
         return response()->json(['success' => true, 'message' => 'Status created successfully', 'data' => $status]);
     }
 

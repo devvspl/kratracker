@@ -21,16 +21,18 @@ class UserController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'name'     => 'required|string|max:255',
-            'email'    => 'required|email|unique:users,email',
-            'password' => ['required', Password::min(8)],
-            'role'     => 'required|exists:roles,name',
+            'name'              => 'required|string|max:255',
+            'email'             => 'required|email|unique:users,email',
+            'password'          => ['required', Password::min(8)],
+            'role'              => 'required|exists:roles,name',
+            'can_manage_own_kra'=> 'boolean',
         ]);
 
         $user = User::create([
-            'name'     => $validated['name'],
-            'email'    => $validated['email'],
-            'password' => Hash::make($validated['password']),
+            'name'               => $validated['name'],
+            'email'              => $validated['email'],
+            'password'           => Hash::make($validated['password']),
+            'can_manage_own_kra' => $validated['can_manage_own_kra'] ?? false,
         ]);
 
         $user->assignRole($validated['role']);
@@ -41,16 +43,18 @@ class UserController extends Controller
     public function update(Request $request, User $user)
     {
         $validated = $request->validate([
-            'name'     => 'required|string|max:255',
-            'email'    => 'required|email|unique:users,email,' . $user->id,
-            'password' => ['nullable', Password::min(8)],
-            'role'     => 'required|exists:roles,name',
+            'name'              => 'required|string|max:255',
+            'email'             => 'required|email|unique:users,email,' . $user->id,
+            'password'          => ['nullable', Password::min(8)],
+            'role'              => 'required|exists:roles,name',
+            'can_manage_own_kra'=> 'boolean',
         ]);
 
         $user->update([
-            'name'  => $validated['name'],
-            'email' => $validated['email'],
-            ...($validated['password'] ? ['password' => Hash::make($validated['password'])] : []),
+            'name'               => $validated['name'],
+            'email'              => $validated['email'],
+            'can_manage_own_kra' => $validated['can_manage_own_kra'] ?? false,
+            ...(!empty($validated['password']) ? ['password' => Hash::make($validated['password'])] : []),
         ]);
 
         $user->syncRoles([$validated['role']]);

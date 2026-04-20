@@ -11,25 +11,20 @@ class ApplicationModuleController extends Controller
 {
     public function index()
     {
-        $modules      = ApplicationModule::with('application')->latest()->get();
-        $applications = Application::where('is_active', true)->orderBy('name')->get();
+        $modules      = ApplicationModule::with('application')->ownedByUser()->latest()->get();
+        $applications = Application::forCurrentUser()->where('is_active', true)->orderBy('name')->get();
         return view('masters.application-modules', compact('modules', 'applications'));
     }
 
-    /**
-     * API: return modules for a given application_id (or global ones if null).
-     */
     public function byApplication(Request $request)
     {
         $appId = $request->query('application_id');
 
-        $query = ApplicationModule::where('is_active', true)->orderBy('name');
+        $query = ApplicationModule::forCurrentUser()->where('is_active', true)->orderBy('name');
 
         if ($appId) {
-            // Return app-specific modules + global (null) modules
             $query->where(function ($q) use ($appId) {
-                $q->where('application_id', $appId)
-                  ->orWhereNull('application_id');
+                $q->where('application_id', $appId)->orWhereNull('application_id');
             });
         } else {
             $query->whereNull('application_id');
@@ -38,9 +33,6 @@ class ApplicationModuleController extends Controller
         return response()->json($query->get(['id', 'name', 'application_id']));
     }
 
-    /**
-     * API: create a module on-the-fly from TomSelect "create" option.
-     */
     public function storeApi(Request $request)
     {
         $validated = $request->validate([
@@ -49,10 +41,7 @@ class ApplicationModuleController extends Controller
         ]);
 
         $module = ApplicationModule::firstOrCreate(
-            [
-                'name'           => $validated['name'],
-                'application_id' => $validated['application_id'] ?? null,
-            ],
+            ['name' => $validated['name'], 'application_id' => $validated['application_id'] ?? null, 'user_id' => auth()->id()],
             ['is_active' => true]
         );
 
@@ -66,7 +55,7 @@ class ApplicationModuleController extends Controller
             'application_id' => 'nullable|exists:applications,id',
             'is_active'      => 'boolean',
         ]);
-        $module = ApplicationModule::create($validated);
+        $module = ApplicationModule::create([...$validated, 'user_id' => auth()->id()]);
         return response()->json(['success' => true, 'message' => 'Module created successfully', 'data' => $module]);
     }
 

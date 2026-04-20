@@ -12,6 +12,7 @@ class ReportConfig extends Model
         'report_type',
         'is_active',
         'last_sent_at',
+        'created_by',
     ];
 
     protected $casts = [
@@ -27,5 +28,10 @@ class ReportConfig extends Model
     public function employee()
     {
         return $this->belongsTo(User::class, 'employee_user_id');
+    }
+
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by');
     }
 }

@@ -4,9 +4,13 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
+use App\Traits\UserScoped;
+
 class ApplicationModule extends Model
 {
-    protected $fillable = ['application_id', 'name', 'is_active'];
+    use UserScoped;
+
+    protected $fillable = ['user_id', 'application_id', 'name', 'is_active'];
 
     protected $casts = ['is_active' => 'boolean'];
 

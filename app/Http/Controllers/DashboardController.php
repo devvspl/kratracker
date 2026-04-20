@@ -80,16 +80,17 @@ class DashboardController extends Controller
 
     private function buildKraMatrix($userId, $dateFrom, $dateTo): \Illuminate\Support\Collection
     {
-        return Kra::with([
-            'subKras.logic',
-            'subKras.periodTargets',
-            'subKras.workLogs' => function ($q) use ($userId, $dateFrom, $dateTo) {
-                $q->where('user_id', $userId)
-                  ->whereBetween('log_date', [$dateFrom->toDateString(), $dateTo->toDateString()])
-                  ->with(['status', 'priority', 'application', 'module', 'feedbacks'])
-                  ->orderByDesc('log_date');
-            },
-        ])->where('is_active', true)->orderBy('id')->get()->map(function ($kra) use ($dateFrom) {
+        return Kra::forCurrentUser()
+            ->with([
+                'subKras.logic',
+                'subKras.periodTargets',
+                'subKras.workLogs' => function ($q) use ($userId, $dateFrom, $dateTo) {
+                    $q->where('user_id', $userId)
+                      ->whereBetween('log_date', [$dateFrom->toDateString(), $dateTo->toDateString()])
+                      ->with(['status', 'priority', 'application', 'module', 'feedbacks'])
+                      ->orderByDesc('log_date');
+                },
+            ])->where('is_active', true)->orderBy('id')->get()->map(function ($kra) use ($dateFrom) {
             $subKras = $kra->subKras->map(function ($sub) use ($dateFrom) {
                 $logs      = $sub->workLogs;
                 $count     = $logs->count();
@@ -193,7 +194,8 @@ class DashboardController extends Controller
         return \App\Models\SubKra::with(['kra', 'workLogs' => function ($q) use ($userId, $dateFrom, $dateTo) {
             $q->where('user_id', $userId)
               ->whereBetween('log_date', [$dateFrom->toDateString(), $dateTo->toDateString()]);
-        }])->get()
+        }])->whereHas('kra', fn($q) => $q->forCurrentUser())
+        ->get()
         ->filter(fn($subKra) => $subKra->workLogs->isNotEmpty())
         ->map(function ($subKra) {
             $logs  = $subKra->workLogs;

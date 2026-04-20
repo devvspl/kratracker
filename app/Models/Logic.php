@@ -4,13 +4,13 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
+use App\Traits\UserScoped;
+
 class Logic extends Model
 {
-    protected $fillable = [
-        'name',
-        'description',
-        'scoring_type',
-    ];
+    use UserScoped;
+
+    protected $fillable = ['user_id', 'name', 'description', 'scoring_type'];
 
     public function subKras()
     {

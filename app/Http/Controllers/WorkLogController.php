@@ -36,11 +36,11 @@ class WorkLogController extends Controller
         if ($request->filled('module_id'))      $query->where('module_id', $request->module_id);
 
         $workLogs    = $query->latest('log_date')->paginate(20);
-        $subKras     = SubKra::with('kra')->where('is_active', true)->get();
-        $applications= Application::where('is_active', true)->get();
-        $priorities  = Priority::where('is_active', true)->orderBy('level', 'desc')->get();
-        $statuses    = TaskStatus::where('is_active', true)->orderBy('sort_order')->get();
-        $modules     = ApplicationModule::where('is_active', true)->orderBy('name')->get();
+        $subKras     = SubKra::with('kra')->where('is_active', true)->whereHas('kra', fn($q) => $q->forCurrentUser())->get();
+        $applications= Application::forCurrentUser()->where('is_active', true)->get();
+        $priorities  = Priority::forCurrentUser()->where('is_active', true)->orderBy('level', 'desc')->get();
+        $statuses    = TaskStatus::forCurrentUser()->where('is_active', true)->orderBy('sort_order')->get();
+        $modules     = ApplicationModule::forCurrentUser()->where('is_active', true)->orderBy('name')->get();
         $contacts    = EmailContact::where('is_active', true)->orderBy('name')->get(['id','name','email']);
         $notifyUsers = \App\Models\User::orderBy('name')->get(['id','name','email']);
 

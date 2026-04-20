@@ -6,15 +6,23 @@ use App\Http\Controllers\Controller;
 use App\Models\Kra;
 use App\Models\Logic;
 use App\Models\SubKra;
+use App\Traits\ScopedMasterController;
 use Illuminate\Http\Request;
 
 class SubKraController extends Controller
 {
+    use ScopedMasterController;
+
     public function index()
     {
         $subKras = SubKra::with(['kra', 'logic'])->latest()->get();
-        $kras    = Kra::where('is_active', true)->get();
-        $logics  = Logic::all();
+        $kras    = $this->isUserScoped()
+            ? Kra::forCurrentUser()->where('is_active', true)->get()
+            : Kra::where('is_active', true)->get();
+        $logics  = $this->isUserScoped()
+            ? Logic::forCurrentUser()->get()
+            : Logic::all();
+
         return view('masters.sub-kras', compact('subKras', 'kras', 'logics'));
     }
 

@@ -2,27 +2,28 @@
 @section('content')
 
 @php $json = json_encode($users->map(fn($u) => [
-    'id'    => $u->id,
-    'name'  => $u->name,
-    'email' => $u->email,
-    'role'  => $u->roles->first()?->name ?? '',
+    'id'                 => $u->id,
+    'name'               => $u->name,
+    'email'              => $u->email,
+    'role'               => $u->roles->first()?->name ?? '',
+    'can_manage_own_kra' => (bool) $u->can_manage_own_kra,
 ])->toArray()); @endphp
 
 <div x-data="{
     items: {{ $json }},
     showModal: false, showDelete: false, mode: 'create', loading: false, deleteId: null,
-    form: { name:'', email:'', password:'', role:'Employee' },
+    form: { name:'', email:'', password:'', role:'Employee', can_manage_own_kra: false },
 
     openCreate() {
         this.mode = 'create';
-        this.form = { name:'', email:'', password:'', role:'Employee' };
+        this.form = { name:'', email:'', password:'', role:'Employee', can_manage_own_kra: false };
         this.showModal = true;
     },
     openEdit(id) {
         this.mode = 'edit';
         const item = this.items.find(i => i.id === id);
         if (!item) return;
-        this.form = { name: item.name, email: item.email, password: '', role: item.role, _id: id };
+        this.form = { name: item.name, email: item.email, password: '', role: item.role, can_manage_own_kra: item.can_manage_own_kra, _id: id };
         this.showModal = true;
     },
     confirmDelete(id) { this.deleteId = id; this.showDelete = true; },
@@ -30,7 +31,7 @@
         this.loading = true;
         const isEdit = this.mode === 'edit';
         const url = isEdit ? '/masters/users/' + this.form._id : '/masters/users';
-        const body = { name: this.form.name, email: this.form.email, role: this.form.role };
+        const body = { name: this.form.name, email: this.form.email, role: this.form.role, can_manage_own_kra: this.form.can_manage_own_kra };
         if (this.form.password) body.password = this.form.password;
         try {
             const res = await fetch(url, { method: isEdit ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content }, body: JSON.stringify(body) });
@@ -72,6 +73,7 @@
                     <th class="px-4 py-3 text-left">Name</th>
                     <th class="px-4 py-3 text-left">Email</th>
                     <th class="px-4 py-3 text-left">Role</th>
+                    <th class="px-4 py-3 text-left">KRA Config</th>
                     <th class="px-4 py-3 text-left">Joined</th>
                     <th class="px-4 py-3 text-left">Actions</th>
                 </tr>
@@ -103,6 +105,16 @@
                         <span class="text-slate-400 text-xs">—</span>
                         @endif
                     </td>
+                    <td class="px-4 py-3">
+                        @if($user->can_manage_own_kra)
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full font-medium bg-teal-100 text-teal-700">
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                Self-Manage
+                            </span>
+                        @else
+                            <span class="px-2 py-0.5 text-xs rounded-full font-medium bg-slate-100 text-slate-500">Admin Only</span>
+                        @endif
+                    </td>
                     <td class="px-4 py-3 text-slate-500 text-xs">{{ $user->created_at->format('d M Y') }}</td>
                     <td class="px-4 py-3">
                         <div class="flex items-center gap-1">
@@ -118,7 +130,7 @@
                     </td>
                 </tr>
                 @empty
-                <tr><td colspan="6" class="px-4 py-10 text-center text-slate-400">No users found.</td></tr>
+                <tr><td colspan="7" class="px-4 py-10 text-center text-slate-400">No users found.</td></tr>
                 @endforelse
             </tbody>
         </table>
@@ -160,6 +172,18 @@
                         <option value="{{ $role->name }}">{{ $role->name }}</option>
                         @endforeach
                     </select>
+                </div>
+
+                {{-- KRA Self-Management --}}
+                <div class="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                    <label class="flex items-start gap-3 cursor-pointer">
+                        <input type="checkbox" x-model="form.can_manage_own_kra"
+                            class="w-4 h-4 mt-0.5 text-teal-600 border-slate-300 rounded focus:ring-teal-500 shrink-0">
+                        <div>
+                            <p class="text-sm font-medium text-slate-700">Allow Self-Manage KRA Config</p>
+                            <p class="text-xs text-slate-500 mt-0.5">User can configure their own Sub-KRAs, scoring logic, and period targets. When disabled, only Admins can manage their KRA setup.</p>
+                        </div>
+                    </label>
                 </div>
                 <div class="flex justify-end gap-3 pt-2">
                     <button type="button" @click="showModal = false" class="px-4 py-2 text-sm border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50">Cancel</button>

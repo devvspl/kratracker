@@ -576,8 +576,7 @@
                                                     ts.on('change', val => formData.sub_kra_id = val); }, 100)" class="w-full" placeholder="Select Sub-KRA">
                                                 <option value="">Select Sub-KRA</option>
                                                 @foreach ($subKras as $subKra)
-                                                    <option value="{{ $subKra->id }}">{{ $subKra->kra->name }} —
-                                                        {{ $subKra->name }}</option>
+                                                    <option value="{{ $subKra->id }}">{{ $subKra->name }}</option>
                                                 @endforeach
                                             </select>
                                         </div>

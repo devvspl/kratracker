@@ -11,6 +11,7 @@ use App\Models\Priority;
 use App\Models\TaskStatus;
 use App\Models\PeriodTarget;
 use App\Models\EmailContact;
+use App\Models\User;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -42,7 +43,7 @@ class WorkLogController extends Controller
         $statuses    = TaskStatus::forCurrentUser()->orderBy('sort_order')->get();
         $modules     = ApplicationModule::forCurrentUser()->where('is_active', true)->orderBy('name')->get();
         $contacts    = EmailContact::where('is_active', true)->orderBy('name')->get(['id','name','email']);
-        $notifyUsers = \App\Models\User::orderBy('name')->get(['id','name','email']);
+        $notifyUsers = User::orderBy('name')->get(['id','name','email']);
 
         return view('work-logs.index', compact('workLogs', 'subKras', 'applications', 'priorities', 'statuses', 'modules', 'contacts', 'notifyUsers'));
     }

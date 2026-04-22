@@ -220,6 +220,16 @@
                 window.location.href = '{{ route("work-logs.index") }}?' + params.toString();
             },
 
+            calcDuration() {
+                const s = this.formData.start_time;
+                const e = this.formData.end_time;
+                if (!s || !e) return;
+                const [sh, sm] = s.split(':').map(Number);
+                const [eh, em] = e.split(':').map(Number);
+                const diff = (eh * 60 + em) - (sh * 60 + sm);
+                if (diff > 0) this.formData.actual_duration = parseFloat((diff / 60).toFixed(2));
+            },
+
             async loadModules(appId) {
                 const url = '/api/modules' + (appId ? '?application_id=' + appId : '');
                 try {
@@ -708,38 +718,43 @@
                             <div x-show="activeTab === 'metrics'" x-transition:enter="transition ease-out duration-300"
                                 x-transition:enter-start="opacity-0 translate-y-2"
                                 x-transition:enter-end="opacity-100 translate-y-0" style="display: none;">
-                                <div class="grid grid-cols-1 gap-3 md:grid-cols-2 mb-3">
+                                <div class="grid grid-cols-1 gap-3 md:grid-cols-3 mb-3">
                                     <div>
                                         <label class="block text-xs font-medium text-slate-700 mb-1">Start Time</label>
-                                        <input type="text" x-init="flatpickr($el, { enableTime: true, noCalendar: true, dateFormat: 'H:i' })" x-model="formData.start_time"
-                                            class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none transition-all bg-white cursor-pointer" placeholder="Select Start Time">
+                                        <input type="text"
+                                            x-init="flatpickr($el, { enableTime: true, noCalendar: true, dateFormat: 'H:i', onClose: () => calcDuration() })"
+                                            x-model="formData.start_time"
+                                            class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none transition-all bg-white cursor-pointer"
+                                            placeholder="Select Start Time">
                                     </div>
                                     <div>
                                         <label class="block text-xs font-medium text-slate-700 mb-1">End Time</label>
-                                        <input type="text" x-init="flatpickr($el, { enableTime: true, noCalendar: true, dateFormat: 'H:i' })" x-model="formData.end_time"
-                                            class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none transition-all bg-white cursor-pointer" placeholder="Select End Time">
+                                        <input type="text"
+                                            x-init="flatpickr($el, { enableTime: true, noCalendar: true, dateFormat: 'H:i', onClose: () => calcDuration() })"
+                                            x-model="formData.end_time"
+                                            class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none transition-all bg-white cursor-pointer"
+                                            placeholder="Select End Time">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium text-slate-700 mb-1">
+                                            Actual Duration (Hours)
+                                            <span class="text-slate-400 font-normal ml-1">— auto from time</span>
+                                        </label>
+                                        <input type="number" step="0.01" x-model.number="formData.actual_duration"
+                                            class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none transition-all"
+                                            placeholder="0.00">
                                     </div>
                                 </div>
-                                <div class="grid grid-cols-1 gap-3 md:grid-cols-3">
+                                <div class="grid grid-cols-1 gap-3 md:grid-cols-2 mt-3">
                                     <div>
-                                        <label class="block text-xs font-medium text-slate-700 mb-1">Total Duration
-                                            (Hours)</label>
+                                        <label class="block text-xs font-medium text-slate-700 mb-1">Total Duration (Hours)</label>
                                         <input type="number" step="0.01" x-model.number="formData.total_duration"
                                             class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none transition-all">
                                     </div>
                                     <div>
-                                        <label class="block text-xs font-medium text-slate-700 mb-1">Actual Duration
-                                            (Hours)</label>
-                                        <input type="number" step="0.01" x-model.number="formData.actual_duration"
-                                            class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none transition-all">
-                                    </div>
-                                    <div>
-                                        <label class="block text-xs font-medium text-slate-700 mb-1">Difference
-                                            (Calculated)</label>
-                                        <div
-                                            class="px-3 py-2 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-lg h-[38px] flex items-center">
-                                            <span
-                                                x-text="(Number(formData.total_duration || 0) - Number(formData.actual_duration || 0)).toFixed(2) + ' Hrs'"></span>
+                                        <label class="block text-xs font-medium text-slate-700 mb-1">Difference (Calculated)</label>
+                                        <div class="px-3 py-2 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-lg h-[38px] flex items-center">
+                                            <span x-text="(Number(formData.total_duration || 0) - Number(formData.actual_duration || 0)).toFixed(2) + ' Hrs'"></span>
                                         </div>
                                     </div>
                                 </div>

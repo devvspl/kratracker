@@ -12,9 +12,17 @@ class ReportController extends Controller
 {
     public function index()
     {
-        $userId    = auth()->id();
-        $configs   = ReportConfig::with(['recipient', 'employee'])->where('created_by', $userId)->latest()->get();
-        $contacts  = \App\Models\EmailContact::with('creator')->where('created_by', $userId)->latest()->get();
+        $userId   = auth()->id();
+        $isAdmin  = auth()->user()->hasRole('Admin');
+
+        $configs  = $isAdmin
+            ? ReportConfig::with(['recipient', 'employee'])->latest()->get()
+            : ReportConfig::with(['recipient', 'employee'])->where('created_by', $userId)->latest()->get();
+
+        $contacts = $isAdmin
+            ? \App\Models\EmailContact::with('creator')->latest()->get()
+            : \App\Models\EmailContact::with('creator')->where('created_by', $userId)->latest()->get();
+
         $users     = User::with('roles')->orderBy('name')->get();
         $employees = User::role(['Employee', 'Manager'])->orderBy('name')->get();
         return view('reports.index', compact('configs', 'contacts', 'users', 'employees'));

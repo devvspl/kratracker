@@ -184,33 +184,34 @@
                 },
 
                 async sendNow() {
+                    const toEl   = document.getElementById('send-to-select');
+                    const empEl  = document.getElementById('send-emp-select');
+                    const typeEl = document.getElementById('send-type-select');
+
+                    const recipientId = toEl?.value   || (toEl?._tomSelect?.getValue())   || '';
+                    const employeeId  = empEl?.value  || (empEl?._tomSelect?.getValue())  || '';
+                    const reportType  = typeEl?.value || (typeEl?._tomSelect?.getValue()) || 'daily';
+
+                    if (!recipientId) return window.showToast('Please select a recipient', 'error');
+
                     this.loading = true;
-                    const body = {
-                        recipient_user_id: this.sendForm.recipient_user_id,
-                        employee_user_id: this.sendForm.employee_user_id || null,
-                        report_type: this.sendForm.report_type,
-                        date_from: this.sendForm.date_from,
-                        date_to: this.sendForm.date_to
-                    };
                     try {
                         const res = await fetch('/reports/send-now', {
                             method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': this.csrf()
-                            },
-                            body: JSON.stringify(body)
+                            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': this.csrf() },
+                            body: JSON.stringify({
+                                recipient_user_id: recipientId,
+                                employee_user_id:  employeeId || null,
+                                report_type:       reportType,
+                                date_from:         this.sendForm.date_from,
+                                date_to:           this.sendForm.date_to
+                            })
                         });
                         const data = await res.json();
-                        if (data.success) {
-                            window.showToast(data.message, 'success');
-                            this.showSend = false;
-                        } else window.showToast(data.message || 'Error', 'error');
-                    } catch (e) {
-                        window.showToast('Network error', 'error');
-                    } finally {
-                        this.loading = false;
-                    }
+                        if (data.success) { window.showToast(data.message, 'success'); this.showSend = false; }
+                        else window.showToast(data.message || 'Error', 'error');
+                    } catch (e) { window.showToast('Network error', 'error'); }
+                    finally { this.loading = false; }
                 },
 
                 openContactCreate() {
@@ -342,26 +343,35 @@
                 },
 
                 async sendContactReport() {
+                    const contactEl  = document.getElementById('cr-contact-select');
+                    const empEl      = document.getElementById('cr-emp-select');
+                    const typeEl     = document.getElementById('cr-type-select');
+
+                    const contactId  = contactEl?.value  || (contactEl?._tomSelect?.getValue()) || '';
+                    const employeeId = empEl?.value      || (empEl?._tomSelect?.getValue())     || '';
+                    const reportType = typeEl?.value     || (typeEl?._tomSelect?.getValue())    || 'daily';
+
+                    if (!contactId)  return window.showToast('Please select a contact', 'error');
+                    if (!employeeId) return window.showToast('Please select an employee', 'error');
+
                     this.loading = true;
                     try {
                         const res = await fetch('/contacts/send-report', {
                             method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': this.csrf()
-                            },
-                            body: JSON.stringify(this.contactReportForm)
+                            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': this.csrf() },
+                            body: JSON.stringify({
+                                contact_id:  contactId,
+                                employee_id: employeeId,
+                                report_type: reportType,
+                                date_from:   this.contactReportForm.date_from,
+                                date_to:     this.contactReportForm.date_to
+                            })
                         });
                         const data = await res.json();
-                        if (data.success) {
-                            window.showToast(data.message, 'success');
-                            this.showContactReport = false;
-                        } else window.showToast(data.message || 'Error', 'error');
-                    } catch (e) {
-                        window.showToast('Network error', 'error');
-                    } finally {
-                        this.loading = false;
-                    }
+                        if (data.success) { window.showToast(data.message, 'success'); this.showContactReport = false; }
+                        else window.showToast(data.message || 'Error', 'error');
+                    } catch (e) { window.showToast('Network error', 'error'); }
+                    finally { this.loading = false; }
                 }
             };
         }
@@ -690,11 +700,13 @@
             <div @click="showSend=false" class="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"></div>
             <div class="relative bg-white rounded-xl shadow-xl w-full max-w-md p-6" @click.stop
                 x-init="$watch('showSend', val => { if(val) setTimeout(() => {
+                    const self = this;
                     const initTs = (id, model) => {
                         const el = document.getElementById(id);
                         if(!el || el._tomSelect) return;
                         const ts = new TomSelect(el, { create: false });
-                        ts.on('change', v => { this[model.split('.')[0]][model.split('.')[1]] = v; });
+                        const parts = model.split('.');
+                        ts.on('change', v => { if(self[parts[0]]) self[parts[0]][parts[1]] = v; });
                     };
                     initTs('send-to-select', 'sendForm.recipient_user_id');
                     initTs('send-emp-select', 'sendForm.employee_user_id');
@@ -711,26 +723,26 @@
                 <form id="send-now-modal" @submit.prevent="sendNow()" class="space-y-4">
                     <div>
                         <label class="block text-xs font-medium text-slate-700 mb-1">Send To <span class="text-red-500">*</span></label>
-                        <select id="send-to-select" x-model="sendForm.recipient_user_id" required
+                        <select id="send-to-select">
+                            <option value="">Select recipient...</option>
                             @foreach ($users as $u)
-                                <option value="{{ $u->id }}">{{ $u->name }}
-                                    ({{ $u->roles->first()?->name ?? 'User' }})
-                                </option>
+                                <option value="{{ $u->id }}">{{ $u->name }} ({{ $u->roles->first()?->name ?? 'User' }})</option>
                             @endforeach
                         </select>
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-slate-700 mb-1">Employee</label>
-                        <select id="send-emp-select" x-model="sendForm.employee_user_id"
+                        <select id="send-emp-select">
+                            <option value="">All Employees</option>
                             @foreach ($employees as $e)
                                 <option value="{{ $e->id }}">{{ $e->name }}</option>
                             @endforeach
                         </select>
                     </div>
                     <div>
-                        <label class="block text-xs font-medium text-slate-700 mb-1">Report Type <span
-                                class="text-red-500">*</span></label>
-                        <select id="send-type-select" x-model="sendForm.report_type" required
+                        <label class="block text-xs font-medium text-slate-700 mb-1">Report Type <span class="text-red-500">*</span></label>
+                        <select id="send-type-select">
+                            <option value="daily">Daily</option>
                             <option value="weekly">Weekly</option>
                             <option value="monthly">Monthly</option>
                         </select>
@@ -1013,11 +1025,12 @@
             <div @click="showContactReport=false" class="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"></div>
             <div class="relative bg-white rounded-xl shadow-xl w-full max-w-md p-6" @click.stop
                 x-init="$watch('showContactReport', val => { if(val) setTimeout(() => {
+                    const self = this;
                     const initTs = (id, key) => {
                         const el = document.getElementById(id);
                         if(!el || el._tomSelect) return;
                         const ts = new TomSelect(el, { create: false });
-                        ts.on('change', v => { this.contactReportForm[key] = v; });
+                        ts.on('change', v => { if(self.contactReportForm) self.contactReportForm[key] = v; });
                     };
                     initTs('cr-contact-select', 'contact_id');
                     initTs('cr-emp-select', 'employee_id');
@@ -1033,29 +1046,26 @@
                 </div>
                 <form id="contact-report-modal" @submit.prevent="sendContactReport()" class="space-y-4">
                     <div>
-                        <label class="block text-xs font-medium text-slate-700 mb-1">Contact <span
-                                class="text-red-500">*</span></label>
-                        <select id="cr-contact-select" x-model="contactReportForm.contact_id" required
+                        <label class="block text-xs font-medium text-slate-700 mb-1">Contact <span class="text-red-500">*</span></label>
+                        <select id="cr-contact-select">
+                            <option value="">Select contact...</option>
                             @foreach ($contacts as $c)
-                                <option value="{{ $c->id }}">{{ $c->name }} &lt;{{ $c->email }}&gt;
-                                </option>
+                                <option value="{{ $c->id }}">{{ $c->name }} &lt;{{ $c->email }}&gt;</option>
                             @endforeach
                         </select>
                     </div>
                     <div>
-                        <label class="block text-xs font-medium text-slate-700 mb-1">Employee <span
-                                class="text-red-500">*</span></label>
-                        <select id="cr-emp-select" x-model="contactReportForm.employee_id" required
+                        <label class="block text-xs font-medium text-slate-700 mb-1">Employee <span class="text-red-500">*</span></label>
+                        <select id="cr-emp-select">
+                            <option value="">Select employee...</option>
                             @foreach ($employees as $e)
                                 <option value="{{ $e->id }}">{{ $e->name }}</option>
                             @endforeach
                         </select>
                     </div>
                     <div>
-                        <label class="block text-xs font-medium text-slate-700 mb-1">Report Type <span
-                                class="text-red-500">*</span></label>
-                        <select x-model="contactReportForm.report_type" required
-                            class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none">
+                        <label class="block text-xs font-medium text-slate-700 mb-1">Report Type <span class="text-red-500">*</span></label>
+                        <select id="cr-type-select">
                             <option value="daily">Daily</option>
                             <option value="weekly">Weekly</option>
                             <option value="monthly">Monthly</option>

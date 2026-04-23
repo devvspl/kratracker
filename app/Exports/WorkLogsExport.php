@@ -7,11 +7,14 @@ use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\WithColumnWidths;
+use Maatwebsite\Excel\Concerns\WithEvents;
+use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
 
-class WorkLogsExport implements FromCollection, WithHeadings, WithMapping, WithStyles, WithColumnWidths
+class WorkLogsExport implements FromCollection, WithHeadings, WithMapping, WithStyles, WithColumnWidths, WithEvents
 {
     protected $workLogs;
 
@@ -165,6 +168,56 @@ class WorkLogsExport implements FromCollection, WithHeadings, WithMapping, WithS
             'O' => 12, 'P' => 12, 'Q' => 14, 'R' => 14, 'S' => 14,
             'T' => 14, 'U' => 12, 'V' => 14, 'W' => 14,
             'X' => 14, 'Y' => 16, 'Z' => 14, 'AA' => 28,
+        ];
+    }
+
+    public function registerEvents(): array
+    {
+        return [
+            AfterSheet::class => function (AfterSheet $event) {
+                $sheet      = $event->sheet->getDelegate();
+                $lastRow    = $sheet->getHighestRow();
+                $lastCol    = $sheet->getHighestColumn();
+                $range      = 'A1:' . $lastCol . $lastRow;
+
+                // Thin border on all cells
+                $sheet->getStyle($range)->applyFromArray([
+                    'borders' => [
+                        'allBorders' => [
+                            'borderStyle' => Border::BORDER_THIN,
+                            'color'       => ['rgb' => 'CBD5E1'],
+                        ],
+                    ],
+                ]);
+
+                // Slightly thicker outer border
+                $sheet->getStyle($range)->applyFromArray([
+                    'borders' => [
+                        'outline' => [
+                            'borderStyle' => Border::BORDER_MEDIUM,
+                            'color'       => ['rgb' => '94A3B8'],
+                        ],
+                    ],
+                ]);
+
+                // Alternate row shading for data rows
+                for ($row = 2; $row <= $lastRow; $row++) {
+                    if ($row % 2 === 0) {
+                        $sheet->getStyle('A' . $row . ':' . $lastCol . $row)
+                            ->getFill()
+                            ->setFillType(Fill::FILL_SOLID)
+                            ->getStartColor()->setRGB('F8FAFC');
+                    }
+                }
+
+                // Wrap text and vertical align top for all data rows
+                $sheet->getStyle('A2:' . $lastCol . $lastRow)->applyFromArray([
+                    'alignment' => [
+                        'vertical'  => Alignment::VERTICAL_TOP,
+                        'wrapText'  => true,
+                    ],
+                ]);
+            },
         ];
     }
 }

@@ -7,11 +7,14 @@ use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\WithColumnWidths;
+use Maatwebsite\Excel\Concerns\WithEvents;
+use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
 
-class KraSummaryExport implements FromCollection, WithHeadings, WithMapping, WithStyles, WithColumnWidths
+class KraSummaryExport implements FromCollection, WithHeadings, WithMapping, WithStyles, WithColumnWidths, WithEvents
 {
     protected $kras;
     protected $year;
@@ -199,6 +202,43 @@ class KraSummaryExport implements FromCollection, WithHeadings, WithMapping, Wit
             'M' => 14, 'N' => 16, 'O' => 14, 'P' => 16, 'Q' => 16,
             'R' => 16, 'S' => 14,
             'T' => 12, 'U' => 12,
+        ];
+    }
+
+    public function registerEvents(): array
+    {
+        return [
+            AfterSheet::class => function (AfterSheet $event) {
+                $sheet   = $event->sheet->getDelegate();
+                $lastRow = $sheet->getHighestRow();
+                $lastCol = $sheet->getHighestColumn();
+                $range   = 'A1:' . $lastCol . $lastRow;
+
+                $sheet->getStyle($range)->applyFromArray([
+                    'borders' => [
+                        'allBorders' => [
+                            'borderStyle' => Border::BORDER_THIN,
+                            'color'       => ['rgb' => 'CBD5E1'],
+                        ],
+                        'outline' => [
+                            'borderStyle' => Border::BORDER_MEDIUM,
+                            'color'       => ['rgb' => '94A3B8'],
+                        ],
+                    ],
+                ]);
+
+                for ($row = 2; $row <= $lastRow; $row++) {
+                    if ($row % 2 === 0) {
+                        $sheet->getStyle('A' . $row . ':' . $lastCol . $row)
+                            ->getFill()->setFillType(Fill::FILL_SOLID)
+                            ->getStartColor()->setRGB('F8FAFC');
+                    }
+                }
+
+                $sheet->getStyle('A2:' . $lastCol . $lastRow)->applyFromArray([
+                    'alignment' => ['vertical' => Alignment::VERTICAL_TOP, 'wrapText' => true],
+                ]);
+            },
         ];
     }
 }

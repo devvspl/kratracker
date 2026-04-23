@@ -798,7 +798,7 @@
                             <div x-show="activeTab === 'status'" x-transition:enter="transition ease-out duration-300"
                                 x-transition:enter-start="opacity-0 translate-y-2"
                                 x-transition:enter-end="opacity-100 translate-y-0" style="display: none;">
-                                <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                <div class="grid grid-cols-1 gap-3 md:grid-cols-3">
                                     <div>
                                         <label class="block text-xs font-medium text-slate-700 mb-1">Status</label>
                                         <div x-id="['status-select']">
@@ -842,14 +842,13 @@
                                             </select>
                                         </div>
                                     </div>
-                                    <div class="md:col-span-2">
-                                        <label class="block text-xs font-medium text-slate-700 mb-1">Testing
-                                            Details</label>
+                                    <div class="md:col-span-3">
+                                        <label class="block text-xs font-medium text-slate-700 mb-1">Testing Details</label>
                                         <textarea x-model="formData.testing_details" rows="2"
                                             class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none transition-all placeholder:text-slate-400"
                                             placeholder="Details regarding testing (logs, issues, outcomes...)"></textarea>
                                     </div>
-                                    <div class="md:col-span-2">
+                                    <div class="md:col-span-3">
                                         <label class="block text-xs font-medium text-slate-700 mb-1">Remark</label>
                                         <input type="text" x-model="formData.remark"
                                             class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none transition-all placeholder:text-slate-400"

@@ -43,7 +43,7 @@ class WorkLogController extends Controller
         $applications= Application::ownedByUser()->where('is_active', true)->get();
         $priorities  = Priority::ownedByUser()->get();
         $statuses    = TaskStatus::ownedByUser()->orderBy('sort_order')->get();
-        $modules     = ApplicationModule::ownedByUser()->where('is_active', true)->orderBy('name')->get();
+        $modules     = ApplicationModule::forCurrentUser()->where('is_active', true)->orderBy('name')->get();
         $contacts    = EmailContact::where('is_active', true)->orderBy('name')->get(['id','name','email']);
         $notifyUsers = User::orderBy('name')->get(['id','name','email']);
 

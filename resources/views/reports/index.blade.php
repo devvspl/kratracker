@@ -299,18 +299,21 @@
                     const subject = this.customMailForm.subject;
                     if (!subject) return window.showToast('Subject is required', 'error');
 
-                    // Get TinyMCE content
                     const body = tinymce.get('custom-email-body') ? tinymce.get('custom-email-body').getContent() : '';
-                    if (!body || body === '<p></p>' || body.trim() === '') return window.showToast(
-                        'Message body is required', 'error');
+                    if (!body || body.replace(/<[^>]*>/g,'').trim() === '') return window.showToast('Message body is required', 'error');
 
-                    // Get TomSelect values
-                    const toTs = document.querySelector('#email-to-select')?._tomSelect;
-                    const ccTs = document.querySelector('#email-cc-select')?._tomSelect;
-                    const bccTs = document.querySelector('#email-bcc-select')?._tomSelect;
-                    const toList = toTs ? Object.keys(toTs.items).map(k => toTs.options[k]?.value || k) : [];
-                    const ccList = ccTs ? Object.keys(ccTs.items).map(k => ccTs.options[k]?.value || k) : [];
-                    const bccList = bccTs ? Object.keys(bccTs.items).map(k => bccTs.options[k]?.value || k) : [];
+                    // TomSelect stores selected values as keys in .items object
+                    const getVals = (sel) => {
+                        const el = document.querySelector(sel);
+                        if (!el) return [];
+                        // Try TomSelect first
+                        if (el._tomSelect) return Object.keys(el._tomSelect.items);
+                        // Fallback: read selected options directly
+                        return Array.from(el.selectedOptions).map(o => o.value).filter(Boolean);
+                    };
+                    const toList  = getVals('#email-to-select');
+                    const ccList  = getVals('#email-cc-select');
+                    const bccList = getVals('#email-bcc-select');
 
                     if (!toList.length) return window.showToast('Add at least one To recipient', 'error');
 
@@ -318,28 +321,14 @@
                     try {
                         const res = await fetch('/contacts/send-custom', {
                             method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': this.csrf()
-                            },
-                            body: JSON.stringify({
-                                to: toList,
-                                cc: ccList,
-                                bcc: bccList,
-                                subject,
-                                body
-                            })
+                            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': this.csrf() },
+                            body: JSON.stringify({ to: toList, cc: ccList, bcc: bccList, subject, body })
                         });
                         const data = await res.json();
-                        if (data.success) {
-                            window.showToast(data.message, 'success');
-                            this.showCustomMail = false;
-                        } else window.showToast(data.message || 'Error', 'error');
-                    } catch (e) {
-                        window.showToast('Network error', 'error');
-                    } finally {
-                        this.loading = false;
-                    }
+                        if (data.success) { window.showToast(data.message, 'success'); this.showCustomMail = false; }
+                        else window.showToast(data.message || 'Error', 'error');
+                    } catch (e) { window.showToast('Network error', 'error'); }
+                    finally { this.loading = false; }
                 },
 
                 async sendContactReport() {

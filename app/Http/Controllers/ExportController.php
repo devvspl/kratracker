@@ -65,7 +65,8 @@ class ExportController extends Controller
             'workLogs' => WorkLog::where('user_id', $user->id)
                 ->whereMonth('log_date', $currentMonth)
                 ->whereYear('log_date', $currentYear)
-                ->with(['subKra.kra', 'status', 'priority'])
+                ->with(['subKra.kra', 'subKra.logic', 'status', 'priority', 'application', 'module', 'feedbacks'])
+                ->orderBy('log_date', 'desc')
                 ->get(),
         ];
 

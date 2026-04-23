@@ -28,24 +28,32 @@ class WorkLogsExport implements FromCollection, WithHeadings, WithMapping, WithS
     public function headings(): array
     {
         return [
-            // Identity
-            'Date', 'Title', 'KRA', 'Sub-KRA', 'Application', 'Module',
-            // Achievement vs Target
-            'Achievement', 'Target', 'Achievement %',
-            // Logic
-            'Logic Type',
-            // Base score (before multipliers)
+            'Date',
+            'Title',
+            'Description',
+            'KRA',
+            'Sub-KRA',
+            'Application',
+            'Module',
+            'Start Time',
+            'End Time',
+            'Total Duration (h)',
+            'Actual Duration (h)',
+            'Priority',
+            'Status',
+            'Test Status',
+            'Achievement',
+            'Target',
+            'Achievement %',
             'Base Score (%)',
-            // Multipliers & bonuses
-            'Status', 'Status Multiplier',
-            'Priority', 'Priority Bonus',
-            'Test Status', 'Test Bonus',
-            'Total Dur (h)', 'Actual Dur (h)', 'Duration Bonus',
-            'Avg Feedback', 'Feedback Bonus',
-            // Final
+            'Status Multiplier',
+            'Priority Bonus',
+            'Test Bonus',
+            'Duration Bonus',
+            'Feedback Bonus',
             'Final Score (%)',
-            'Sub-KRA Weight (%)', 'Weighted Score',
-            // Meta
+            'Sub-KRA Weight (%)',
+            'Weighted Score',
             'Remark',
         ];
     }
@@ -55,19 +63,16 @@ class WorkLogsExport implements FromCollection, WithHeadings, WithMapping, WithS
         $subKra = $log->subKra;
         $logic  = optional($subKra->logic);
 
-        // ── Base score ────────────────────────────────────────────────────────
         $achievement = (float) $log->achievement_value;
         $target      = (float) $log->target_value_snapshot;
 
         if ($logic->scoring_type === 'proportional') {
             $baseScore = $target > 0 ? min(($achievement / $target) * 100, 100) : 0;
         } else {
-            // binary
             $baseScore = $achievement >= $target ? 100 : 0;
         }
         $achievementPct = $target > 0 ? round(($achievement / $target) * 100, 2) : 0;
 
-        // ── Status multiplier ─────────────────────────────────────────────────
         $statusName = optional($log->status)->name ?? '—';
         $statusMult = match(true) {
             str_contains($statusName, 'Completed')   => 1.0,
@@ -76,31 +81,22 @@ class WorkLogsExport implements FromCollection, WithHeadings, WithMapping, WithS
             default                                  => 0.0,
         };
 
-        // ── Priority bonus ────────────────────────────────────────────────────
-        $priorityName  = optional($log->priority)->name ?? '—';
-        $priorityLevel = (int) (optional($log->priority)->level ?? 0);
-        $priorityBonus = $statusMult > 0 ? match($priorityLevel) {
-            3 => 10, 2 => 5, default => 0
-        } : 0;
+        $priorityLevel = (int)(optional($log->priority)->level ?? 0);
+        $priorityBonus = $statusMult > 0 ? match($priorityLevel) { 3=>10, 2=>5, default=>0 } : 0;
 
-        // ── Test bonus ────────────────────────────────────────────────────────
         $testStatus = $log->test_status ?? '—';
-        $testBonus  = $statusMult > 0 ? match($testStatus) {
-            'Passed' => 5, 'Failed' => -10, default => 0
-        } : 0;
+        $testBonus  = $statusMult > 0 ? match($testStatus) { 'Passed'=>5, 'Failed'=>-10, default=>0 } : 0;
 
-        // ── Duration bonus ────────────────────────────────────────────────────
-        $totalDur  = (float) ($log->total_duration  ?? 0);
-        $actualDur = (float) ($log->actual_duration ?? 0);
+        $totalDur  = (float)($log->total_duration  ?? 0);
+        $actualDur = (float)($log->actual_duration ?? 0);
         $durBonus  = 0;
         if ($statusMult > 0 && $totalDur > 0 && $actualDur > 0) {
             if ($actualDur <= $totalDur)          $durBonus = 5;
             elseif ($actualDur > $totalDur * 1.2) $durBonus = -5;
         }
 
-        // ── Feedback bonus ────────────────────────────────────────────────────
-        $feedbacks    = $log->feedbacks;
-        $avgFeedback  = $feedbacks->isNotEmpty() ? round($feedbacks->avg('rating'), 1) : null;
+        $feedbacks     = $log->feedbacks;
+        $avgFeedback   = $feedbacks->isNotEmpty() ? round($feedbacks->avg('rating'), 1) : null;
         $feedbackBonus = 0;
         if ($statusMult > 0 && $avgFeedback !== null) {
             $feedbackBonus = match(true) {
@@ -111,33 +107,36 @@ class WorkLogsExport implements FromCollection, WithHeadings, WithMapping, WithS
             };
         }
 
-        // ── Final score ───────────────────────────────────────────────────────
-        $finalScore   = round(max(0, min(100, ($baseScore * $statusMult) + $priorityBonus + $testBonus + $durBonus + $feedbackBonus)), 2);
-        $weightage    = (float) optional($subKra)->weightage;
+        $finalScore    = round(max(0, min(100, ($baseScore * $statusMult) + $priorityBonus + $testBonus + $durBonus + $feedbackBonus)), 2);
+        $weightage     = (float)optional($subKra)->weightage;
         $weightedScore = round(($finalScore * $weightage) / 100, 2);
+
+        $startTime = $log->start_time ? \Carbon\Carbon::parse($log->start_time)->format('H:i') : '—';
+        $endTime   = $log->end_time   ? \Carbon\Carbon::parse($log->end_time)->format('H:i')   : '—';
 
         return [
             $log->log_date->format('Y-m-d'),
             $log->title,
+            $log->description ?? '',
             optional($subKra->kra)->name ?? '—',
             optional($subKra)->name ?? '—',
             optional($log->application)->name ?? '—',
             optional($log->module)->name ?? '—',
+            $startTime,
+            $endTime,
+            $totalDur,
+            $actualDur,
+            optional($log->priority)->name ?? '—',
+            $statusName,
+            $testStatus,
             $achievement,
             $target,
             $achievementPct . '%',
-            $logic->scoring_type ?? '—',
             round($baseScore, 2) . '%',
-            $statusName,
             $statusMult . '×',
-            $priorityName,
             ($priorityBonus >= 0 ? '+' : '') . $priorityBonus,
-            $testStatus,
             ($testBonus >= 0 ? '+' : '') . $testBonus,
-            $totalDur,
-            $actualDur,
             ($durBonus >= 0 ? '+' : '') . $durBonus,
-            $avgFeedback ?? '—',
             ($feedbackBonus >= 0 ? '+' : '') . $feedbackBonus,
             $finalScore . '%',
             $weightage . '%',
@@ -150,8 +149,8 @@ class WorkLogsExport implements FromCollection, WithHeadings, WithMapping, WithS
     {
         return [
             1 => [
-                'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF'], 'size' => 10],
-                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '0D9488']],
+                'font'      => ['bold' => true, 'color' => ['rgb' => 'FFFFFF'], 'size' => 10],
+                'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '0D9488']],
                 'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'wrapText' => true],
             ],
         ];
@@ -160,16 +159,12 @@ class WorkLogsExport implements FromCollection, WithHeadings, WithMapping, WithS
     public function columnWidths(): array
     {
         return [
-            'A' => 13, 'B' => 32, 'C' => 26, 'D' => 26, 'E' => 18, 'F' => 18,
-            'G' => 12, 'H' => 12, 'I' => 14,
-            'J' => 16, 'K' => 14,
-            'L' => 16, 'M' => 16,
-            'N' => 14, 'O' => 14,
-            'P' => 14, 'Q' => 12,
-            'R' => 13, 'S' => 13, 'T' => 14,
-            'U' => 13, 'V' => 14,
-            'W' => 14, 'X' => 16, 'Y' => 14,
-            'Z' => 28,
+            'A' => 13, 'B' => 32, 'C' => 35, 'D' => 26, 'E' => 26,
+            'F' => 18, 'G' => 18, 'H' => 11, 'I' => 11,
+            'J' => 14, 'K' => 14, 'L' => 14, 'M' => 16, 'N' => 14,
+            'O' => 12, 'P' => 12, 'Q' => 14, 'R' => 14, 'S' => 14,
+            'T' => 14, 'U' => 12, 'V' => 14, 'W' => 14,
+            'X' => 14, 'Y' => 16, 'Z' => 14, 'AA' => 28,
         ];
     }
 }

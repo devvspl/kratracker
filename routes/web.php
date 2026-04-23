@@ -56,10 +56,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/work-logs/store', [WorkLogController::class, 'store'])->name('work-logs.store');
     Route::post('/work-logs/send-custom-email', [WorkLogController::class, 'sendCustomEmail'])->name('work-logs.send-custom-email');
     Route::get('/work-logs/{workLog}/show', [WorkLogController::class, 'show'])->name('work-logs.show');
-    Route::put('/work-logs/{workLog}/update', [WorkLogController::class, 'update'])->name('work-logs.update');
+    Route::match(['PUT','POST'], '/work-logs/{workLog}/update', [WorkLogController::class, 'update'])->name('work-logs.update');
     Route::delete('/work-logs/{workLog}/delete', [WorkLogController::class, 'destroy'])->name('work-logs.destroy');
     Route::post('/work-logs/{workLog}/feedback', [WorkLogController::class, 'storeFeedback'])->name('work-logs.feedback');
     Route::get('/work-logs/attachments/{attachment}/download', [WorkLogController::class, 'downloadAttachment'])->name('work-logs.download-attachment');
+    Route::delete('/work-logs/attachments/{attachment}/delete', [WorkLogController::class, 'deleteAttachment'])->name('work-logs.delete-attachment');
 
     // Export Routes
     Route::get('/export/work-logs', [ExportController::class, 'exportWorkLogs'])->name('export.work-logs');

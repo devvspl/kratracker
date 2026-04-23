@@ -261,7 +261,7 @@ class WorkLogController extends Controller
             'description'      => 'nullable|string',
             'log_date'         => 'required|date',
             'priority_id'      => 'nullable|exists:priorities,id',
-            'status_id'        => 'required|exists:task_statuses,id',
+            'status_id'        => 'nullable|exists:task_statuses,id',
             'achievement_value'=> 'nullable|numeric|min:0',
             'start_time'       => 'nullable',
             'end_time'         => 'nullable',
@@ -274,17 +274,55 @@ class WorkLogController extends Controller
             'notify_contact_ids.*' => 'exists:email_contacts,id',
             'notify_user_ids'      => 'nullable|array',
             'notify_user_ids.*'    => 'exists:users,id',
+            'links'            => 'nullable|array',
+            'links.*.title'    => 'required|string|max:255',
+            'links.*.url'      => 'required|url|max:500',
+        ]);
+
+        // Handle file uploads
+        $request->validate([
+            'attachments'   => 'nullable|array',
+            'attachments.*' => 'file|max:10240|mimes:pdf,doc,docx,xls,xlsx,ppt,pptx,txt,jpg,jpeg,png,gif,zip,rar',
         ]);
 
         if (isset($validated['log_date'])) {
             $validated['log_date'] = Carbon::parse($validated['log_date'])->format('Y-m-d');
         }
 
-        $totalDur = $validated['total_duration'] ?? $workLog->total_duration ?? 0;
+        $totalDur  = $validated['total_duration']  ?? $workLog->total_duration  ?? 0;
         $actualDur = $validated['actual_duration'] ?? $workLog->actual_duration ?? 0;
         $validated['duration_difference'] = $totalDur - $actualDur;
 
         $workLog->update($validated);
+
+        // Handle new file attachments
+        if ($request->hasFile('attachments')) {
+            foreach ($request->file('attachments') as $file) {
+                $originalName = $file->getClientOriginalName();
+                $fileName = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+                $filePath = $file->storeAs('work-log-attachments', $fileName, 'public');
+
+                $workLog->attachments()->create([
+                    'original_name' => $originalName,
+                    'file_name'     => $fileName,
+                    'file_path'     => $filePath,
+                    'mime_type'     => $file->getMimeType(),
+                    'file_size'     => $file->getSize(),
+                ]);
+            }
+        }
+
+        // Sync links — delete old, insert new
+        if ($request->has('links')) {
+            $workLog->links()->delete();
+            foreach ($validated['links'] ?? [] as $link) {
+                $workLog->links()->create([
+                    'title' => $link['title'],
+                    'url'   => $link['url'],
+                ]);
+            }
+        }
+
         $workLog->calculateScore();
 
         // Notify if marked completed
@@ -300,7 +338,6 @@ class WorkLogController extends Controller
             $this->notifyContacts($workLog, 'status_change', $newStatus, $validated['notify_contact_ids'] ?? []);
         }
 
-        // Notify selected system users
         if (!empty($validated['notify_user_ids'])) {
             $this->notifySystemUsers($workLog, $validated['notify_user_ids'], $newStatus);
         }
@@ -308,7 +345,7 @@ class WorkLogController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Work log updated successfully',
-            'data'    => $workLog->load(['subKra.kra', 'application', 'priority', 'status']),
+            'data'    => $workLog->load(['subKra.kra', 'application', 'priority', 'status', 'attachments', 'links']),
         ]);
     }
 
@@ -318,13 +355,12 @@ class WorkLogController extends Controller
             return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
         }
 
-        if ($workLog->attachments) {
-            foreach ($workLog->attachments as $attachment) {
-                Storage::disk('public')->delete($attachment['path']);
-            }
+        // Delete physical files from storage
+        foreach ($workLog->attachments as $attachment) {
+            Storage::disk('public')->delete($attachment->file_path);
         }
 
-        $workLog->delete();
+        $workLog->delete(); // cascade deletes attachments & links rows
 
         return response()->json(['success' => true, 'message' => 'Work log deleted successfully']);
     }
@@ -449,17 +485,23 @@ class WorkLogController extends Controller
 
     public function downloadAttachment(WorkLogAttachment $attachment)
     {
-        // Check if user owns the work log
-        if ($attachment->workLog->user_id !== auth()->id()) {
-            abort(403, 'Unauthorized access to attachment');
-        }
+        if ($attachment->workLog->user_id !== auth()->id()) abort(403);
 
         $filePath = storage_path('app/public/' . $attachment->file_path);
-        
-        if (!file_exists($filePath)) {
-            abort(404, 'File not found');
-        }
+        if (!file_exists($filePath)) abort(404, 'File not found');
 
         return response()->download($filePath, $attachment->original_name);
+    }
+
+    public function deleteAttachment(WorkLogAttachment $attachment)
+    {
+        if ($attachment->workLog->user_id !== auth()->id()) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+        }
+
+        Storage::disk('public')->delete($attachment->file_path);
+        $attachment->delete();
+
+        return response()->json(['success' => true, 'message' => 'Attachment deleted']);
     }
 }

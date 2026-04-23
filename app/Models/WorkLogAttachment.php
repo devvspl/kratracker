@@ -19,6 +19,8 @@ class WorkLogAttachment extends Model
         'file_size',
     ];
 
+    protected $appends = ['file_size_human', 'download_url'];
+
     public function workLog(): BelongsTo
     {
         return $this->belongsTo(WorkLog::class);

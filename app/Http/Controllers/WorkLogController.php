@@ -37,7 +37,7 @@ class WorkLogController extends Controller
         if ($request->filled('module_id'))      $query->where('module_id', $request->module_id);
 
         $workLogs    = $query->latest('log_date')->paginate(20);
-        $subKras     = SubKra::with('kra')->where('is_active', true)->whereHas('kra', fn($q) => $q->forCurrentUser())->get();
+        $subKras     = SubKra::with('kra')->where('is_active', true)->whereHas('kra', fn($q) => $q->ownedByUser())->get();
         $applications= Application::forCurrentUser()->where('is_active', true)->get();
         $priorities  = Priority::forCurrentUser()->get();
         $statuses    = TaskStatus::forCurrentUser()->orderBy('sort_order')->get();

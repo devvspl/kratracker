@@ -80,7 +80,7 @@ class DashboardController extends Controller
 
     private function buildKraMatrix($userId, $dateFrom, $dateTo): \Illuminate\Support\Collection
     {
-        return Kra::forCurrentUser()
+        return Kra::ownedByUser()
             ->with([
                 'subKras.logic',
                 'subKras.periodTargets',
@@ -194,7 +194,7 @@ class DashboardController extends Controller
         return \App\Models\SubKra::with(['kra', 'workLogs' => function ($q) use ($userId, $dateFrom, $dateTo) {
             $q->where('user_id', $userId)
               ->whereBetween('log_date', [$dateFrom->toDateString(), $dateTo->toDateString()]);
-        }])->whereHas('kra', fn($q) => $q->forCurrentUser())
+        }])->whereHas('kra', fn($q) => $q->ownedByUser())
         ->get()
         ->filter(fn($subKra) => $subKra->workLogs->isNotEmpty())
         ->map(function ($subKra) {
@@ -211,7 +211,7 @@ class DashboardController extends Controller
 
     private function getKraWiseScores($userId, $dateFrom, $dateTo)
     {
-        return Kra::forCurrentUser()
+        return Kra::ownedByUser()
             ->with(['subKras.workLogs' => function ($q) use ($userId, $dateFrom, $dateTo) {
                 $q->where('user_id', $userId)
                   ->whereBetween('log_date', [$dateFrom->toDateString(), $dateTo->toDateString()]);

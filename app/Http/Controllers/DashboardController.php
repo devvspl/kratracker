@@ -211,23 +211,24 @@ class DashboardController extends Controller
 
     private function getKraWiseScores($userId, $dateFrom, $dateTo)
     {
-        return Kra::with(['subKras.workLogs' => function ($q) use ($userId, $dateFrom, $dateTo) {
-            $q->where('user_id', $userId)
-              ->whereBetween('log_date', [$dateFrom->toDateString(), $dateTo->toDateString()]);
-        }])->get()->map(function ($kra) {
-            $totalScore = 0;
-            $count      = 0;
-            foreach ($kra->subKras as $subKra) {
-                foreach ($subKra->workLogs as $log) {
-                    $totalScore += $log->score_calculated;
-                    $count++;
+        return Kra::forCurrentUser()
+            ->with(['subKras.workLogs' => function ($q) use ($userId, $dateFrom, $dateTo) {
+                $q->where('user_id', $userId)
+                  ->whereBetween('log_date', [$dateFrom->toDateString(), $dateTo->toDateString()]);
+            }])->get()->map(function ($kra) {
+                $totalScore = 0;
+                $count      = 0;
+                foreach ($kra->subKras as $subKra) {
+                    foreach ($subKra->workLogs as $log) {
+                        $totalScore += $log->score_calculated;
+                        $count++;
+                    }
                 }
-            }
-            return [
-                'name'      => $kra->name,
-                'score'     => $count > 0 ? round($totalScore / $count, 2) : 0,
-                'weightage' => $kra->total_weightage,
-            ];
-        });
+                return [
+                    'name'      => $kra->name,
+                    'score'     => $count > 0 ? round($totalScore / $count, 2) : 0,
+                    'weightage' => $kra->total_weightage,
+                ];
+            });
     }
 }

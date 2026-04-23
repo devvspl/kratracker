@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\WorkLog;
 use App\Models\WorkLogFeedback;
+use App\Models\WorkLogAttachment;
+use App\Models\WorkLogLink;
 use App\Models\SubKra;
 use App\Models\Application;
 use App\Models\ApplicationModule;
@@ -21,7 +23,7 @@ class WorkLogController extends Controller
 {
     public function index(Request $request)
     {
-        $query = WorkLog::with(['subKra.kra', 'application', 'priority', 'status'])
+        $query = WorkLog::with(['subKra.kra', 'application', 'priority', 'status', 'attachments', 'links'])
             ->where('user_id', auth()->id());
 
         $dateFrom = $request->has('date_from') ? $request->date_from : date('Y-m-d');
@@ -120,7 +122,7 @@ class WorkLogController extends Controller
             'description'      => 'nullable|string',
             'log_date'         => 'required|date',
             'priority_id'      => 'nullable|exists:priorities,id',
-            'status_id'        => 'required|exists:task_statuses,id',
+            'status_id'        => 'nullable|exists:task_statuses,id',
             'achievement_value'=> 'nullable|numeric|min:0',
             'start_time'       => 'nullable',
             'end_time'         => 'nullable',
@@ -133,6 +135,15 @@ class WorkLogController extends Controller
             'notify_contact_ids.*' => 'exists:email_contacts,id',
             'notify_user_ids'    => 'nullable|array',
             'notify_user_ids.*'  => 'exists:users,id',
+            'links'            => 'nullable|array',
+            'links.*.title'    => 'required|string|max:255',
+            'links.*.url'      => 'required|url|max:500',
+        ]);
+
+        // Handle file uploads
+        $request->validate([
+            'attachments'   => 'nullable|array',
+            'attachments.*' => 'file|max:10240|mimes:pdf,doc,docx,xls,xlsx,ppt,pptx,txt,jpg,jpeg,png,gif,zip,rar',
         ]);
 
         // Get target value from period targets
@@ -174,6 +185,33 @@ class WorkLogController extends Controller
             'remark'               => $validated['remark'] ?? null,
         ]);
 
+        // Handle file attachments
+        if ($request->hasFile('attachments')) {
+            foreach ($request->file('attachments') as $file) {
+                $originalName = $file->getClientOriginalName();
+                $fileName = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+                $filePath = $file->storeAs('work-log-attachments', $fileName, 'public');
+
+                $workLog->attachments()->create([
+                    'original_name' => $originalName,
+                    'file_name' => $fileName,
+                    'file_path' => $filePath,
+                    'mime_type' => $file->getMimeType(),
+                    'file_size' => $file->getSize(),
+                ]);
+            }
+        }
+
+        // Handle links
+        if (!empty($validated['links'])) {
+            foreach ($validated['links'] as $link) {
+                $workLog->links()->create([
+                    'title' => $link['title'],
+                    'url' => $link['url'],
+                ]);
+            }
+        }
+
         $workLog->calculateScore();
 
         app(NotificationService::class)->notify(
@@ -195,13 +233,13 @@ class WorkLogController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Work log created successfully',
-            'data'    => $workLog->load(['subKra.kra', 'application', 'priority', 'status']),
+            'data'    => $workLog->load(['subKra.kra', 'application', 'priority', 'status', 'attachments', 'links']),
         ]);
     }
 
     public function show(WorkLog $workLog)
     {
-        $workLog->load(['subKra.kra', 'subKra.logic', 'application', 'priority', 'status', 'feedbacks.user']);
+        $workLog->load(['subKra.kra', 'subKra.logic', 'application', 'priority', 'status', 'feedbacks.user', 'attachments', 'links']);
 
         return response()->json([
             'success' => true,
@@ -407,5 +445,21 @@ class WorkLogController extends Controller
             'message' => 'Feedback added successfully',
             'data'    => $feedback->load('user'),
         ]);
+    }
+
+    public function downloadAttachment(WorkLogAttachment $attachment)
+    {
+        // Check if user owns the work log
+        if ($attachment->workLog->user_id !== auth()->id()) {
+            abort(403, 'Unauthorized access to attachment');
+        }
+
+        $filePath = storage_path('app/public/' . $attachment->file_path);
+        
+        if (!file_exists($filePath)) {
+            abort(404, 'File not found');
+        }
+
+        return response()->download($filePath, $attachment->original_name);
     }
 }

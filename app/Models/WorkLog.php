@@ -60,6 +60,16 @@ class WorkLog extends Model
         return $this->hasMany(WorkLogFeedback::class);
     }
 
+    public function attachments()
+    {
+        return $this->hasMany(WorkLogAttachment::class);
+    }
+
+    public function links()
+    {
+        return $this->hasMany(WorkLogLink::class);
+    }
+
     public function calculateScore()
     {
         $subKra = $this->subKra;

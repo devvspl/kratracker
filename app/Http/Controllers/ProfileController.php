@@ -13,10 +13,41 @@ use Illuminate\View\View;
 
 class ProfileController extends Controller
 {
-    public function edit(Request $request): View
-    {
-        return view('profile.edit', ['user' => $request->user()]);
+public function edit(Request $request): View
+{
+    $backups = [];
+
+    if (auth()->user()->roles->first()?->name === 'Admin') {
+        $files = \Storage::disk('local')->files('backups');
+
+        foreach ($files as $file) {
+            if (!str_ends_with($file, '.sql') && !str_ends_with($file, '.sql.gz')) continue;
+
+            $size     = \Storage::disk('local')->size($file);
+            $modified = \Storage::disk('local')->lastModified($file);
+
+            $bytes = match(true) {
+                $size >= 1048576 => number_format($size / 1048576, 2) . ' MB',
+                $size >= 1024    => number_format($size / 1024, 2) . ' KB',
+                default          => $size . ' B',
+            };
+
+            $backups[] = [
+                'name'      => basename($file),
+                'size'      => $bytes,
+                'created'   => \Carbon\Carbon::createFromTimestamp($modified)->format('d M Y, H:i'),
+                'timestamp' => $modified,
+            ];
+        }
+
+        usort($backups, fn($a, $b) => $b['timestamp'] <=> $a['timestamp']);
     }
+
+    return view('profile.edit', [
+        'user'    => $request->user(),
+        'backups' => $backups,
+    ]);
+}
 
     public function update(ProfileUpdateRequest $request): RedirectResponse
     {
@@ -35,7 +66,7 @@ class ProfileController extends Controller
     {
         $validated = $request->validateWithBag('updatePassword', [
             'current_password' => ['required', 'current_password'],
-            'password'         => ['required', Password::min(8), 'confirmed'],
+            'password' => ['required', Password::min(8), 'confirmed'],
         ]);
 
         $request->user()->update([

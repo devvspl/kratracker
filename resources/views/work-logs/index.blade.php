@@ -63,8 +63,11 @@
                 priority_id: '{{ $defaultPriorityId }}', status_id: '', achievement_value: 1,
                 start_time: '', end_time: '',
                 total_duration: 0, actual_duration: 0, test_status: '', testing_details: '',
-                remark: '', notify_contact_ids: [], notify_user_ids: []
+                remark: '', notify_contact_ids: [], notify_user_ids: [],
+                attachments: [], links: []
             },
+            newLink: { title: '', url: '' },
+            uploadedFiles: [],
             showCustomEmail: false,
             customEmail: { subject: '', body: '' },
             selectedId: null, activeTab: 'general', showFilters: false,
@@ -96,7 +99,9 @@
                     priority_id:'{{ $defaultPriorityId }}', status_id:'', achievement_value:1,
                     start_time:'', end_time:'',
                     total_duration:0, actual_duration:0, test_status:'', testing_details:'',
-                    remark:'', notify_contact_ids:[], notify_user_ids:[] };
+                    remark:'', notify_contact_ids:[], notify_user_ids:[], attachments:[], links:[] };
+                this.newLink = { title: '', url: '' };
+                this.uploadedFiles = [];
                 this.showModal = true;
             },
 
@@ -117,8 +122,11 @@
                             start_time: (d.start_time||'').substring(0,5), end_time: (d.end_time||'').substring(0,5),
                             total_duration: d.total_duration||0, actual_duration: d.actual_duration||0,
                             test_status: d.test_status||'', testing_details: d.testing_details||'',
-                            remark: d.remark||'', notify_contact_ids:[], notify_user_ids:[]
+                            remark: d.remark||'', notify_contact_ids:[], notify_user_ids:[],
+                            attachments: d.attachments || [], links: d.links || []
                         };
+                        this.feedbacks = d.feedbacks || [];
+                        this.uploadedFiles = []; // Reset for new uploads
                         this.showModal = true;
                     }
                 } catch(e) { window.showToast('Error loading record','error'); }
@@ -143,23 +151,58 @@
                     this.activeTab = 'general';
                     return window.showToast('Please fill out Task Title and Sub-KRA','error');
                 }
-                if (!this.formData.log_date || !this.formData.status_id) {
-                    this.activeTab = 'status';
-                    return window.showToast('Please fill out Log Date and Status','error');
+                if (!this.formData.log_date) {
+                    this.activeTab = 'general';
+                    return window.showToast('Please fill out Log Date','error');
                 }
                 this.loading = true;
                 const isEdit = this.modalMode === 'edit';
                 const url = isEdit ? '/work-logs/' + this.selectedId + '/update' : '/work-logs/store';
+                
+                // Create FormData for file uploads
+                const formData = new FormData();
+                
+                // Add regular form fields
+                Object.keys(this.formData).forEach(key => {
+                    if (key === 'links') {
+                        // Handle links array
+                        this.formData.links.forEach((link, index) => {
+                            formData.append(`links[${index}][title]`, link.title);
+                            formData.append(`links[${index}][url]`, link.url);
+                        });
+                    } else if (key === 'attachments') {
+                        // Skip existing attachments for edit mode
+                        return;
+                    } else if (Array.isArray(this.formData[key])) {
+                        this.formData[key].forEach((item, index) => {
+                            formData.append(`${key}[${index}]`, item);
+                        });
+                    } else if (this.formData[key] !== null && this.formData[key] !== '') {
+                        formData.append(key, this.formData[key]);
+                    }
+                });
+                
+                // Add new file uploads
+                this.uploadedFiles.forEach((fileObj, index) => {
+                    formData.append(`attachments[${index}]`, fileObj.file);
+                });
+                
                 try {
-                    const res  = await fetch(url, { method: isEdit ? 'PUT' : 'POST',
-                        headers: { 'Content-Type':'application/json', 'Accept':'application/json', 'X-CSRF-TOKEN': this.csrf() },
-                        body: JSON.stringify(this.formData) });
+                    const res = await fetch(url, { 
+                        method: isEdit ? 'PUT' : 'POST',
+                        headers: { 'Accept':'application/json', 'X-CSRF-TOKEN': this.csrf() },
+                        body: formData 
+                    });
                     const data = await res.json();
                     if (res.status === 422) {
                         const errors = data.errors ? Object.values(data.errors).flat().join('\n') : data.message;
                         return window.showToast(errors || 'Validation error','error');
                     }
-                    if (res.ok && data.success) { window.showToast(data.message,'success'); this.showModal=false; setTimeout(()=>location.reload(),800); }
+                    if (res.ok && data.success) { 
+                        window.showToast(data.message,'success'); 
+                        this.showModal=false; 
+                        setTimeout(()=>location.reload(),800); 
+                    }
                     else window.showToast(data.message||'Validation error','error');
                 } catch(e) { window.showToast('Network error','error'); }
                 finally { this.loading = false; }
@@ -177,13 +220,20 @@
             },
 
             async submitFeedback() {
+                if (!this.feedbackForm.comment.trim()) return window.showToast('Comment is required','error');
+                if (!this.selectedId) return window.showToast('Please save the work log first','error');
+                
                 this.loading = true;
                 try {
-                    const res  = await fetch('/work-logs/' + this.feedbackLogId + '/feedback', { method:'POST',
+                    const res  = await fetch('/work-logs/' + this.selectedId + '/feedback', { method:'POST',
                         headers:{'Content-Type':'application/json','X-CSRF-TOKEN':this.csrf()},
                         body: JSON.stringify(this.feedbackForm) });
                     const data = await res.json();
-                    if (data.success) { window.showToast(data.message,'success'); this.feedbacks.push(data.data); this.feedbackForm={feedback_type:'self',comment:'',rating:5}; }
+                    if (data.success) { 
+                        window.showToast(data.message,'success'); 
+                        this.feedbacks.push(data.data); 
+                        this.feedbackForm={feedback_type:'self',comment:'',rating:5}; 
+                    }
                     else window.showToast(data.message||'Error','error');
                 } catch(e) { window.showToast('Network error','error'); }
                 finally { this.loading = false; }
@@ -260,6 +310,64 @@
                     this.filters.module_id = '';
                     ts.setValue('', true);
                 } catch(e) {}
+            },
+
+            addLink() {
+                if (!this.newLink.title.trim() || !this.newLink.url.trim()) {
+                    return window.showToast('Please fill both link title and URL','error');
+                }
+                if (!this.isValidUrl(this.newLink.url)) {
+                    return window.showToast('Please enter a valid URL','error');
+                }
+                this.formData.links.push({
+                    id: Date.now(),
+                    title: this.newLink.title.trim(),
+                    url: this.newLink.url.trim()
+                });
+                this.newLink = { title: '', url: '' };
+            },
+
+            removeLink(id) {
+                this.formData.links = this.formData.links.filter(link => link.id !== id);
+            },
+
+            isValidUrl(string) {
+                try {
+                    new URL(string);
+                    return true;
+                } catch (_) {
+                    return false;
+                }
+            },
+
+            handleFileUpload(event) {
+                const files = Array.from(event.target.files);
+                files.forEach(file => {
+                    if (file.size > 10 * 1024 * 1024) { // 10MB limit
+                        window.showToast(`File ${file.name} is too large (max 10MB)`, 'error');
+                        return;
+                    }
+                    this.uploadedFiles.push({
+                        id: Date.now() + Math.random(),
+                        file: file,
+                        name: file.name,
+                        size: this.formatFileSize(file.size),
+                        type: file.type
+                    });
+                });
+                event.target.value = ''; // Reset input
+            },
+
+            removeFile(id) {
+                this.uploadedFiles = this.uploadedFiles.filter(file => file.id !== id);
+            },
+
+            formatFileSize(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
             }
         };
     }
@@ -459,13 +567,6 @@
                                                 d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                         </svg>
                                     </button>
-                                    <button @click="openFeedback({{ $log->id }})" title="Feedback"
-                                        class="p-1 text-slate-400 hover:text-yellow-600 rounded">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                                        </svg>
-                                    </button>
                                     <button @click="confirmDelete({{ $log->id }})" title="Delete"
                                         class="p-1 text-slate-400 hover:text-red-600 rounded">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -551,6 +652,14 @@
                             :class="activeTab === 'metrics' ? 'border-teal-500 text-teal-700' :
                                 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'"
                             class="pb-2 text-sm font-medium border-b-2 transition-colors">3. Metrics & Duration</button>
+                        <button type="button" @click="activeTab = 'attachments'"
+                            :class="activeTab === 'attachments' ? 'border-teal-500 text-teal-700' :
+                                'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'"
+                            class="pb-2 text-sm font-medium border-b-2 transition-colors">4. Attachments & Links</button>
+                        <button type="button" @click="activeTab = 'feedback'"
+                            :class="activeTab === 'feedback' ? 'border-teal-500 text-teal-700' :
+                                'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'"
+                            class="pb-2 text-sm font-medium border-b-2 transition-colors">5. Feedback & Reviews</button>
                     </div>
 
                     {{-- ✅ Form wraps BOTH the scrollable content AND the footer --}}
@@ -581,12 +690,32 @@
                                                 class="text-red-500">*</span></label>
                                         <div x-id="['sub-kra-select']">
                                             <select :id="$id('sub-kra-select')" x-model="formData.sub_kra_id"
-                                                x-init="setTimeout(() => { let ts = new TomSelect($el, { create: false, placeholder: 'Select Sub-KRA' });
+                                                x-init="setTimeout(() => {
+                                                    let ts = new TomSelect($el, {
+                                                        create: false,
+                                                        placeholder: 'Select Sub-KRA',
+                                                        searchField: ['text', 'kra', 'subkra'],
+                                                        render: {
+                                                            option: function(data, escape) {
+                                                                var kraName = data.kra || '';
+                                                                var subName = data.subkra || data.text || '';
+                                                                return '<div style=\'padding:8px 12px\'>' +
+                                                                    '<div style=\'font-weight:500;color:#1e293b;font-size:0.875rem;line-height:1.25\'>' + escape(subName) + '</div>' +
+                                                                    (kraName ? '<div style=\'font-size:0.75rem;color:#94a3b8;margin-top:2px;line-height:1.2\'>' + escape(kraName) + '</div>' : '') +
+                                                                '</div>';
+                                                            },
+                                                            item: function(data, escape) {
+                                                                var subName = data.subkra || data.text || '';
+                                                                return '<div>' + escape(subName) + '</div>';
+                                                            }
+                                                        }
+                                                    });
                                                     $watch('formData.sub_kra_id', val => ts.setValue(val, true));
-                                                    ts.on('change', val => formData.sub_kra_id = val); }, 100)" class="w-full" placeholder="Select Sub-KRA">
+                                                    ts.on('change', val => formData.sub_kra_id = val);
+                                                }, 100)" class="w-full" placeholder="Select Sub-KRA">
                                                 <option value="">Select Sub-KRA</option>
                                                 @foreach ($subKras as $subKra)
-                                                    <option value="{{ $subKra->id }}">{{ $subKra->name }}</option>
+                                                    <option value="{{ $subKra->id }}" data-kra="{{ $subKra->kra->name }}" data-subkra="{{ $subKra->name }}">{{ $subKra->name }}</option>
                                                 @endforeach
                                             </select>
                                         </div>
@@ -640,6 +769,12 @@
                                             </select>
                                         </div>
                                     </div>
+                                    <div>
+                                        <label class="block text-xs font-medium text-slate-700 mb-1">Log Date <span
+                                                class="text-red-500">*</span></label>
+                                        <input type="text" x-init="flatpickr($el, { dateFormat: 'Y-m-d' })" x-model="formData.log_date"
+                                            class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none transition-all cursor-pointer bg-white">
+                                    </div>
                                 </div>
                             </div>
 
@@ -649,14 +784,7 @@
                                 x-transition:enter-end="opacity-100 translate-y-0" style="display: none;">
                                 <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
                                     <div>
-                                        <label class="block text-xs font-medium text-slate-700 mb-1">Log Date <span
-                                                class="text-red-500">*</span></label>
-                                        <input type="text" x-init="flatpickr($el, { dateFormat: 'Y-m-d' })" x-model="formData.log_date"
-                                            class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none transition-all cursor-pointer bg-white">
-                                    </div>
-                                    <div>
-                                        <label class="block text-xs font-medium text-slate-700 mb-1">Status <span
-                                                class="text-red-500">*</span></label>
+                                        <label class="block text-xs font-medium text-slate-700 mb-1">Status</label>
                                         <div x-id="['status-select']">
                                             <select :id="$id('status-select')" x-model="formData.status_id"
                                                 x-init="setTimeout(() => { let ts = new TomSelect($el, { create: false, placeholder: 'Select Status' });
@@ -836,21 +964,229 @@
                                     </div>
                                 </div>
                             </div>
+
+                            {{-- Tab 4: Attachments & Links --}}
+                            <div x-show="activeTab === 'attachments'" x-transition:enter="transition ease-out duration-300"
+                                x-transition:enter-start="opacity-0 translate-y-2"
+                                x-transition:enter-end="opacity-100 translate-y-0" style="display: none;">
+                                
+                                {{-- File Uploads --}}
+                                <div class="mb-6">
+                                    <h4 class="text-sm font-semibold text-slate-700 mb-3">File Attachments</h4>
+                                    
+                                    {{-- Existing Attachments (Edit Mode) --}}
+                                    <div x-show="modalMode === 'edit' && formData.attachments && formData.attachments.length > 0" class="mb-4">
+                                        <h5 class="text-xs font-medium text-slate-600 mb-2">Existing Files</h5>
+                                        <div class="space-y-2">
+                                            <template x-for="attachment in formData.attachments" :key="attachment.id">
+                                                <div class="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-200">
+                                                    <div class="flex items-center gap-3">
+                                                        <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                                        </svg>
+                                                        <div>
+                                                            <p class="text-sm font-medium text-blue-800" x-text="attachment.original_name"></p>
+                                                            <p class="text-xs text-blue-600" x-text="attachment.file_size_human"></p>
+                                                        </div>
+                                                    </div>
+                                                    <a :href="attachment.download_url" target="_blank"
+                                                        class="text-blue-600 hover:text-blue-800 p-1" title="Download">
+                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                                        </svg>
+                                                    </a>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </div>
+                                    
+                                    {{-- Upload Area --}}
+                                    <div class="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-teal-400 transition-colors">
+                                        <input type="file" multiple @change="handleFileUpload($event)" 
+                                            class="hidden" id="file-upload" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.jpg,.jpeg,.png,.gif,.zip,.rar">
+                                        <label for="file-upload" class="cursor-pointer">
+                                            <svg class="w-8 h-8 text-slate-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                                            </svg>
+                                            <p class="text-sm text-slate-600">Click to upload files or drag and drop</p>
+                                            <p class="text-xs text-slate-400 mt-1">PDF, DOC, XLS, PPT, Images, ZIP (max 10MB each)</p>
+                                        </label>
+                                    </div>
+
+                                    {{-- Uploaded Files List --}}
+                                    <div x-show="uploadedFiles.length > 0" class="mt-4 space-y-2">
+                                        <template x-for="file in uploadedFiles" :key="file.id">
+                                            <div class="flex items-center justify-between p-3 bg-slate-50 rounded-lg border">
+                                                <div class="flex items-center gap-3">
+                                                    <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                                    </svg>
+                                                    <div>
+                                                        <p class="text-sm font-medium text-slate-700" x-text="file.name"></p>
+                                                        <p class="text-xs text-slate-500" x-text="file.size"></p>
+                                                    </div>
+                                                </div>
+                                                <button type="button" @click="removeFile(file.id)" 
+                                                    class="text-red-500 hover:text-red-700 p-1">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+
+                                {{-- Links Section --}}
+                                <div class="border-t border-slate-100 pt-6">
+                                    <h4 class="text-sm font-semibold text-slate-700 mb-3">Related Links</h4>
+                                    
+                                    {{-- Add Link Form --}}
+                                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+                                        <div>
+                                            <label class="block text-xs font-medium text-slate-600 mb-1">Link Title</label>
+                                            <input type="text" x-model="newLink.title" 
+                                                class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none"
+                                                placeholder="e.g. Documentation, Reference">
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-medium text-slate-600 mb-1">URL</label>
+                                            <input type="url" x-model="newLink.url" 
+                                                class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none"
+                                                placeholder="https://example.com">
+                                        </div>
+                                        <div class="flex items-end">
+                                            <button type="button" @click="addLink()" 
+                                                class="w-full px-4 py-2 text-sm font-medium bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors">
+                                                Add Link
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {{-- Links List --}}
+                                    <div x-show="formData.links.length > 0" class="space-y-2">
+                                        <template x-for="link in formData.links" :key="link.id">
+                                            <div class="flex items-center justify-between p-3 bg-slate-50 rounded-lg border">
+                                                <div class="flex items-center gap-3">
+                                                    <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+                                                    </svg>
+                                                    <div>
+                                                        <p class="text-sm font-medium text-slate-700" x-text="link.title"></p>
+                                                        <a :href="link.url" target="_blank" class="text-xs text-teal-600 hover:text-teal-700 break-all" x-text="link.url"></a>
+                                                    </div>
+                                                </div>
+                                                <button type="button" @click="removeLink(link.id)" 
+                                                    class="text-red-500 hover:text-red-700 p-1">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                        </template>
+                                    </div>
+
+                                    <div x-show="formData.links.length === 0" class="text-center py-4">
+                                        <p class="text-sm text-slate-400">No links added yet</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {{-- Tab 5: Feedback & Reviews --}}
+                            <div x-show="activeTab === 'feedback'" x-transition:enter="transition ease-out duration-300"
+                                x-transition:enter-start="opacity-0 translate-y-2"
+                                x-transition:enter-end="opacity-100 translate-y-0" style="display: none;">
+                                
+                                {{-- Existing Feedback Display --}}
+                                <div class="mb-6">
+                                    <h4 class="text-sm font-semibold text-slate-700 mb-3">Previous Feedback</h4>
+                                    <div class="max-h-48 overflow-y-auto bg-slate-50 p-4 rounded-lg">
+                                        <template x-if="feedbacks.length === 0">
+                                            <p class="text-sm text-slate-400 text-center py-4">No feedback provided yet.</p>
+                                        </template>
+                                        <template x-for="fb in feedbacks" :key="fb.id">
+                                            <div class="mb-3 p-3 bg-white border border-slate-200 rounded-lg shadow-sm">
+                                                <div class="flex justify-between items-center mb-1">
+                                                    <span class="text-xs font-medium"
+                                                        :class="fb.feedback_type == 'self' ? 'text-blue-600' : 'text-purple-600'"
+                                                        x-text="fb.feedback_type == 'self' ? 'Self Review' : 'Manager Review'"></span>
+                                                    <span class="text-xs text-slate-400"
+                                                        x-text="new Date(fb.created_at).toLocaleDateString()"></span>
+                                                </div>
+                                                <p class="text-sm text-slate-700 mb-2" x-text="fb.comment"></p>
+                                                <div class="flex items-center gap-1">
+                                                    <template x-for="i in 5" :key="i">
+                                                        <svg class="w-3 h-3" :class="i <= fb.rating ? 'text-yellow-400' : 'text-slate-300'" fill="currentColor" viewBox="0 0 20 20">
+                                                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                                                        </svg>
+                                                    </template>
+                                                    <span class="text-xs text-slate-500 ml-1" x-text="fb.rating + '/5'"></span>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+
+                                {{-- Add New Feedback --}}
+                                <div class="border-t border-slate-100 pt-4">
+                                    <h4 class="text-sm font-semibold text-slate-700 mb-3">Add New Feedback</h4>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label class="block text-xs font-medium text-slate-600 mb-1">Feedback Type</label>
+                                            <select x-model="feedbackForm.feedback_type"
+                                                class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none">
+                                                <option value="self">Self Review</option>
+                                                <option value="manager">Manager Review</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-medium text-slate-600 mb-1">Rating</label>
+                                            <div class="flex items-center gap-1 p-2">
+                                                <template x-for="i in 5" :key="i">
+                                                    <button type="button" @click="feedbackForm.rating = i"
+                                                        class="focus:outline-none transition-colors">
+                                                        <svg class="w-6 h-6" :class="i <= feedbackForm.rating ? 'text-yellow-400 hover:text-yellow-500' : 'text-slate-300 hover:text-slate-400'" fill="currentColor" viewBox="0 0 20 20">
+                                                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                                                        </svg>
+                                                    </button>
+                                                </template>
+                                                <span class="text-sm text-slate-500 ml-2" x-text="feedbackForm.rating + '/5'"></span>
+                                            </div>
+                                        </div>
+                                        <div class="md:col-span-2">
+                                            <label class="block text-xs font-medium text-slate-600 mb-1">Comment</label>
+                                            <textarea x-model="feedbackForm.comment" rows="3"
+                                                class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none placeholder:text-slate-400"
+                                                placeholder="Your thoughts on this task..."></textarea>
+                                        </div>
+                                        <div class="md:col-span-2">
+                                            <button type="button" @click="submitFeedback()" :disabled="loading || !feedbackForm.comment.trim()"
+                                                class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors">
+                                                <svg x-show="loading" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                </svg>
+                                                <span x-text="loading ? 'Posting...' : 'Post Feedback'"></span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                         <div class="px-6 py-4 flex justify-end gap-3 border-t border-slate-100 bg-slate-50/50">
                             <button type="button" x-show="activeTab !== 'general'"
-                                @click="activeTab = activeTab === 'metrics' ? 'status' : 'general'"
+                                @click="activeTab = activeTab === 'feedback' ? 'attachments' : (activeTab === 'attachments' ? 'metrics' : (activeTab === 'metrics' ? 'status' : 'general'))"
                                 class="px-5 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors mr-auto">Back</button>
 
                             <button type="button" @click="showModal = false"
                                 class="px-5 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
 
-                            <button type="button" x-show="activeTab !== 'metrics'"
-                                @click="activeTab = activeTab === 'general' ? 'status' : 'metrics'"
+                            <button type="button" x-show="activeTab !== 'feedback'"
+                                @click="activeTab = activeTab === 'general' ? 'status' : (activeTab === 'status' ? 'metrics' : (activeTab === 'metrics' ? 'attachments' : 'feedback'))"
                                 class="px-5 py-2 text-sm font-medium text-white bg-slate-800 rounded-lg hover:bg-slate-900 transition-colors">Next
                                 Step</button>
 
-                            <button type="submit" x-show="activeTab === 'metrics'"
+                            <button type="submit" x-show="activeTab === 'feedback'"
                                 class="px-5 py-2 text-sm font-medium text-white bg-teal-600 rounded-lg hover:bg-teal-700 transition-colors flex items-center gap-2"
                                 :disabled="loading">
                                 <svg x-show="loading" class="animate-spin -ml-1 mr-1 h-4 w-4 text-white" fill="none"

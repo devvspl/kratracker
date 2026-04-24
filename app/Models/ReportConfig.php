@@ -8,7 +8,6 @@ class ReportConfig extends Model
 {
     protected $fillable = [
         'recipient_user_id',
-        'employee_user_id',
         'report_type',
         'is_active',
         'last_sent_at',
@@ -23,11 +22,6 @@ class ReportConfig extends Model
     public function recipient()
     {
         return $this->belongsTo(User::class, 'recipient_user_id');
-    }
-
-    public function employee()
-    {
-        return $this->belongsTo(User::class, 'employee_user_id');
     }
 
     public function creator()

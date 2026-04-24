@@ -5,14 +5,12 @@
             $configs
                 ->map(
                     fn($c) => [
-                        'id' => $c->id,
-                        'recipient_user_id' => $c->recipient_user_id,
-                        'recipient_name' => optional($c->recipient)->name,
-                        'employee_user_id' => $c->employee_user_id,
-                        'employee_name' => optional($c->employee)->name ?? 'All Employees',
-                        'report_type' => $c->report_type,
-                        'is_active' => $c->is_active,
-                        'last_sent_at' => $c->last_sent_at?->diffForHumans(),
+                        'id'               => $c->id,
+                        'recipient_user_id'=> $c->recipient_user_id,
+                        'recipient_name'   => optional($c->recipient)->name,
+                        'report_type'      => $c->report_type,
+                        'is_active'        => $c->is_active,
+                        'last_sent_at'     => $c->last_sent_at?->diffForHumans(),
                     ],
                 )
                 ->values()
@@ -90,8 +88,8 @@
                 },
                 contactReportForm: {
                     contact_id: '',
-                    employee_id: '',
                     report_type: 'daily',
+                    report_format: 'email',
                     date_from: '{{ now()->startOfMonth()->toDateString() }}',
                     date_to: '{{ now()->toDateString() }}'
                 },
@@ -102,26 +100,25 @@
 
                 openCreate() {
                     this.mode = 'create';
-                    this.form = {
-                        recipient_user_id: '',
-                        employee_user_id: '',
-                        report_type: 'daily',
-                        is_active: true
-                    };
+                    this.form = { recipient_user_id: '', employee_user_id: '', report_type: 'daily', is_active: true };
                     this.showModal = true;
+                    setTimeout(() => {
+                        const sync = (id, val) => { const el = document.getElementById(id); if(el?._tomSelect) el._tomSelect.setValue(val, true); };
+                        sync('rc-recipient-select', '');
+                        sync('rc-type-select', 'daily');
+                    }, 150);
                 },
                 openEdit(id) {
                     this.mode = 'edit';
                     const c = this.configs.find(x => x.id === id);
                     if (!c) return;
-                    this.form = {
-                        recipient_user_id: c.recipient_user_id,
-                        employee_user_id: c.employee_user_id || '',
-                        report_type: c.report_type,
-                        is_active: c.is_active,
-                        _id: id
-                    };
+                    this.form = { recipient_user_id: c.recipient_user_id, employee_user_id: c.employee_user_id || '', report_type: c.report_type, is_active: c.is_active, _id: id };
                     this.showModal = true;
+                    setTimeout(() => {
+                        const sync = (id, val) => { const el = document.getElementById(id); if(el?._tomSelect) el._tomSelect.setValue(val || '', true); };
+                        sync('rc-recipient-select', c.recipient_user_id);
+                        sync('rc-type-select', c.report_type);
+                    }, 150);
                 },
                 confirmDelete(id) {
                     this.deleteId = id;
@@ -132,6 +129,20 @@
                     this.loading = true;
                     const isEdit = this.mode === 'edit';
                     const url = isEdit ? '/reports/' + this.form._id : '/reports';
+
+                    // Read values from TomSelect instances
+                    const recipientEl = document.getElementById('rc-recipient-select');
+                    const employeeEl  = document.getElementById('rc-employee-select');
+                    const typeEl      = document.getElementById('rc-type-select');
+                    if (recipientEl?._tomSelect) this.form.recipient_user_id = recipientEl._tomSelect.getValue();
+                    if (employeeEl?._tomSelect)  this.form.employee_user_id  = employeeEl._tomSelect.getValue();
+                    if (typeEl?._tomSelect)       this.form.report_type       = typeEl._tomSelect.getValue();
+
+                    if (!this.form.recipient_user_id) {
+                        this.loading = false;
+                        return window.showToast('Please select a recipient', 'error');
+                    }
+
                     const body = {
                         recipient_user_id: this.form.recipient_user_id,
                         employee_user_id: this.form.employee_user_id || null,
@@ -333,15 +344,12 @@
 
                 async sendContactReport() {
                     const contactEl  = document.getElementById('cr-contact-select');
-                    const empEl      = document.getElementById('cr-emp-select');
                     const typeEl     = document.getElementById('cr-type-select');
 
                     const contactId  = contactEl?.value  || (contactEl?._tomSelect?.getValue()) || '';
-                    const employeeId = empEl?.value      || (empEl?._tomSelect?.getValue())     || '';
                     const reportType = typeEl?.value     || (typeEl?._tomSelect?.getValue())    || 'daily';
 
                     if (!contactId)  return window.showToast('Please select a contact', 'error');
-                    if (!employeeId) return window.showToast('Please select an employee', 'error');
 
                     this.loading = true;
                     try {
@@ -349,11 +357,11 @@
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': this.csrf() },
                             body: JSON.stringify({
-                                contact_id:  contactId,
-                                employee_id: employeeId,
-                                report_type: reportType,
-                                date_from:   this.contactReportForm.date_from,
-                                date_to:     this.contactReportForm.date_to
+                                contact_id:    contactId,
+                                report_type:   reportType,
+                                report_format: this.contactReportForm.report_format,
+                                date_from:     this.contactReportForm.date_from,
+                                date_to:       this.contactReportForm.date_to
                             })
                         });
                         const data = await res.json();
@@ -376,14 +384,6 @@
             </div>
             <div class="flex items-center gap-2">
                 <div x-show="activeTab === 'reports'" class="flex items-center gap-2">
-                    <button @click="showSend = true"
-                        class="px-3 py-2 bg-white border border-slate-200 text-slate-600 text-xs font-medium rounded-lg hover:bg-slate-50 flex items-center gap-1.5 shadow-sm transition-colors">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                        </svg>
-                        Send Now
-                    </button>
                     <button @click="openCreate()"
                         class="px-3 py-2 bg-teal-600 text-white text-xs font-medium rounded-lg hover:bg-teal-700 flex items-center gap-1.5 shadow-sm transition-colors">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -481,7 +481,6 @@
                         <tr>
                             <th class="px-4 py-3 text-left">#</th>
                             <th class="px-4 py-3 text-left">Recipient</th>
-                            <th class="px-4 py-3 text-left">Employee</th>
                             <th class="px-4 py-3 text-left">Type</th>
                             <th class="px-4 py-3 text-left">Status</th>
                             <th class="px-4 py-3 text-left">Last Sent</th>
@@ -491,14 +490,10 @@
                     <tbody class="divide-y divide-slate-100">
                         @forelse($configs as $i => $config)
                             <tr class="hover:bg-slate-50">
-                                <td class="px-4 py-3 text-slate-400 text-xs">{{ $i + 1 }}</td>
+                                <td class="px-4 py-3 text-xs">{{ $i + 1 }}</td>
                                 <td class="px-4 py-3">
-                                    <p class="font-medium text-slate-800 text-xs">{{ optional($config->recipient)->name }}
-                                    </p>
+                                    <p class="font-medium text-slate-800 text-xs">{{ optional($config->recipient)->name }}</p>
                                     <p class="text-xs text-slate-400">{{ optional($config->recipient)->email }}</p>
-                                </td>
-                                <td class="px-4 py-3 text-xs text-slate-600">
-                                    {{ $config->employee_user_id ? optional($config->employee)->name : 'All Employees' }}
                                 </td>
                                 <td class="px-4 py-3">
                                     <span
@@ -539,7 +534,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="px-4 py-10 text-center text-slate-400 text-xs">No report configs
+                                <td colspan="6" class="px-4 py-10 text-center text-slate-400 text-xs">No report configs
                                     yet. Click "Add Config" to create one.</td>
                             </tr>
                         @endforelse
@@ -631,32 +626,31 @@
                     <div>
                         <label class="block text-xs font-medium text-slate-700 mb-1">Send Report To (Recipient) <span
                                 class="text-red-500">*</span></label>
-                        <select x-model="form.recipient_user_id" required
-                            class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none">
+                        <select id="rc-recipient-select" x-init="setTimeout(() => {
+                            const el = document.getElementById('rc-recipient-select');
+                            if (el && !el._tomSelect) {
+                                const ts = new TomSelect(el, { create: false });
+                                ts.on('change', v => form.recipient_user_id = v);
+                                $watch('showModal', val => { if(val) setTimeout(() => ts.setValue(form.recipient_user_id || '', true), 50); });
+                            }
+                        }, 100)">
                             <option value="">Select recipient...</option>
                             @foreach ($users as $u)
-                                <option value="{{ $u->id }}">{{ $u->name }}
-                                    ({{ $u->roles->first()?->name ?? 'User' }})
-                                </option>
+                                <option value="{{ $u->id }}">{{ $u->name }} — {{ $u->email }}</option>
                             @endforeach
                         </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-slate-700 mb-1">Report About (Employee)</label>
-                        <select x-model="form.employee_user_id"
-                            class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none">
-                            <option value="">All Employees</option>
-                            @foreach ($employees as $e)
-                                <option value="{{ $e->id }}">{{ $e->name }}</option>
-                            @endforeach
-                        </select>
-                        <p class="text-xs text-slate-400 mt-1">Leave blank to receive reports for all employees.</p>
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-slate-700 mb-1">Report Type <span
                                 class="text-red-500">*</span></label>
-                        <select x-model="form.report_type" required
-                            class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none">
+                        <select id="rc-type-select" x-init="setTimeout(() => {
+                            const el = document.getElementById('rc-type-select');
+                            if (el && !el._tomSelect) {
+                                const ts = new TomSelect(el, { create: false });
+                                ts.on('change', v => form.report_type = v);
+                                $watch('showModal', val => { if(val) setTimeout(() => ts.setValue(form.report_type || 'daily', true), 50); });
+                            }
+                        }, 100)">
                             <option value="daily">Daily (Weekdays at 08:00)</option>
                             <option value="weekly">Weekly (Monday at 08:30)</option>
                             <option value="monthly">Monthly (1st at 09:00)</option>
@@ -1022,16 +1016,15 @@
                         ts.on('change', v => { if(self.contactReportForm) self.contactReportForm[key] = v; });
                     };
                     initTs('cr-contact-select', 'contact_id');
-                    initTs('cr-emp-select', 'employee_id');
                     initTs('cr-type-select', 'report_type');
                 }, 100); })">
                 <div class="flex items-center justify-between mb-5">
                     <h3 class="text-base font-bold text-slate-800">Send Report to Contact</h3>
-                    <button @click="showContactReport=false" class="text-slate-400 hover:text-slate-600"><svg
-                            class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M6 18L18 6M6 6l12 12" />
-                        </svg></button>
+                    <button @click="showContactReport=false" class="text-slate-400 hover:text-slate-600">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
                 </div>
                 <form id="contact-report-modal" @submit.prevent="sendContactReport()" class="space-y-4">
                     <div>
@@ -1044,21 +1037,50 @@
                         </select>
                     </div>
                     <div>
-                        <label class="block text-xs font-medium text-slate-700 mb-1">Employee <span class="text-red-500">*</span></label>
-                        <select id="cr-emp-select">
-                            <option value="">Select employee...</option>
-                            @foreach ($employees as $e)
-                                <option value="{{ $e->id }}">{{ $e->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div>
                         <label class="block text-xs font-medium text-slate-700 mb-1">Report Type <span class="text-red-500">*</span></label>
                         <select id="cr-type-select">
                             <option value="daily">Daily</option>
                             <option value="weekly">Weekly</option>
                             <option value="monthly">Monthly</option>
                         </select>
+                    </div>
+                    {{-- Report Format --}}
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 mb-2">Report Format <span class="text-red-500">*</span></label>
+                        <div class="grid grid-cols-3 gap-2">
+                            <label class="relative cursor-pointer">
+                                <input type="radio" x-model="contactReportForm.report_format" value="email" class="sr-only peer">
+                                <div class="flex flex-col items-center gap-1.5 px-3 py-3 rounded-lg border-2 border-slate-200 peer-checked:border-teal-500 peer-checked:bg-teal-50 hover:border-slate-300 transition-all">
+                                    <svg class="w-5 h-5 text-slate-400 peer-checked:text-teal-600" :class="contactReportForm.report_format === 'email' ? 'text-teal-600' : 'text-slate-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                                    </svg>
+                                    <span class="text-xs font-medium" :class="contactReportForm.report_format === 'email' ? 'text-teal-700' : 'text-slate-600'">Email</span>
+                                </div>
+                            </label>
+                            <label class="relative cursor-pointer">
+                                <input type="radio" x-model="contactReportForm.report_format" value="pdf" class="sr-only peer">
+                                <div class="flex flex-col items-center gap-1.5 px-3 py-3 rounded-lg border-2 border-slate-200 peer-checked:border-teal-500 peer-checked:bg-teal-50 hover:border-slate-300 transition-all">
+                                    <svg class="w-5 h-5" :class="contactReportForm.report_format === 'pdf' ? 'text-teal-600' : 'text-slate-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                                    </svg>
+                                    <span class="text-xs font-medium" :class="contactReportForm.report_format === 'pdf' ? 'text-teal-700' : 'text-slate-600'">PDF</span>
+                                </div>
+                            </label>
+                            <label class="relative cursor-pointer">
+                                <input type="radio" x-model="contactReportForm.report_format" value="excel" class="sr-only peer">
+                                <div class="flex flex-col items-center gap-1.5 px-3 py-3 rounded-lg border-2 border-slate-200 peer-checked:border-teal-500 peer-checked:bg-teal-50 hover:border-slate-300 transition-all">
+                                    <svg class="w-5 h-5" :class="contactReportForm.report_format === 'excel' ? 'text-teal-600' : 'text-slate-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                    </svg>
+                                    <span class="text-xs font-medium" :class="contactReportForm.report_format === 'excel' ? 'text-teal-700' : 'text-slate-600'">Excel</span>
+                                </div>
+                            </label>
+                        </div>
+                        <p class="text-xs text-slate-400 mt-1.5">
+                            <span x-show="contactReportForm.report_format === 'email'">Sends a formatted HTML email report.</span>
+                            <span x-show="contactReportForm.report_format === 'pdf'">Attaches a PDF file to the email.</span>
+                            <span x-show="contactReportForm.report_format === 'excel'">Attaches an Excel (.xlsx) file to the email.</span>
+                        </p>
                     </div>
                     <div class="grid grid-cols-2 gap-3">
                         <div>
@@ -1072,15 +1094,14 @@
                                 class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none bg-white">
                         </div>
                     </div>
-                    <div class="flex justify-end gap-3">
+                    <div class="flex justify-end gap-3 pt-1">
                         <button type="button" @click="showContactReport=false"
                             class="px-4 py-2 text-sm border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50">Cancel</button>
                         <button type="submit" :disabled="loading"
                             class="px-4 py-2 text-sm bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50 flex items-center gap-2">
                             <svg x-show="loading" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
-                                    stroke-width="4" />
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
                             </svg>
                             <span x-text="loading ? 'Sending...' : 'Send Report'"></span>
                         </button>

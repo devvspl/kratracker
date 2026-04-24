@@ -12,12 +12,12 @@ class ReportController extends Controller
 {
     public function index()
     {
-        $userId   = auth()->id();
-        $isAdmin  = auth()->user()->hasRole('Admin');
+        $userId  = auth()->id();
+        $isAdmin = auth()->user()->hasRole('Admin');
 
         $configs  = $isAdmin
-            ? ReportConfig::with(['recipient', 'employee'])->latest()->get()
-            : ReportConfig::with(['recipient', 'employee'])->where('created_by', $userId)->latest()->get();
+            ? ReportConfig::with('recipient')->latest()->get()
+            : ReportConfig::with('recipient')->where('created_by', $userId)->latest()->get();
 
         $contacts = $isAdmin
             ? \App\Models\EmailContact::with('creator')->latest()->get()
@@ -25,6 +25,7 @@ class ReportController extends Controller
 
         $users     = User::with('roles')->orderBy('name')->get();
         $employees = User::role(['Employee', 'Manager'])->orderBy('name')->get();
+
         return view('reports.index', compact('configs', 'contacts', 'users', 'employees'));
     }
 
@@ -32,12 +33,10 @@ class ReportController extends Controller
     {
         $validated = $request->validate([
             'recipient_user_id' => 'required|exists:users,id',
-            'employee_user_id'  => 'nullable|exists:users,id',
             'report_type'       => 'required|in:daily,weekly,monthly',
         ]);
 
         $exists = ReportConfig::where('recipient_user_id', $validated['recipient_user_id'])
-            ->where('employee_user_id', $validated['employee_user_id'] ?? null)
             ->where('report_type', $validated['report_type'])
             ->where('created_by', auth()->id())
             ->exists();
@@ -47,14 +46,13 @@ class ReportController extends Controller
         }
 
         $config = ReportConfig::create([...$validated, 'created_by' => auth()->id()]);
-        return response()->json(['success' => true, 'message' => 'Report config created.', 'data' => $config->load(['recipient', 'employee'])]);
+        return response()->json(['success' => true, 'message' => 'Report config created.', 'data' => $config->load('recipient')]);
     }
 
     public function update(Request $request, ReportConfig $reportConfig)
     {
         $validated = $request->validate([
             'recipient_user_id' => 'required|exists:users,id',
-            'employee_user_id'  => 'nullable|exists:users,id',
             'report_type'       => 'required|in:daily,weekly,monthly',
             'is_active'         => 'boolean',
         ]);
@@ -68,12 +66,10 @@ class ReportController extends Controller
         return response()->json(['success' => true, 'message' => 'Report config deleted.']);
     }
 
-    /** Manual send — trigger immediately */
     public function sendNow(Request $request, ReportService $reporter)
     {
         $validated = $request->validate([
             'recipient_user_id' => 'required|exists:users,id',
-            'employee_user_id'  => 'nullable|exists:users,id',
             'report_type'       => 'required|in:daily,weekly,monthly',
             'date_from'         => 'nullable|date',
             'date_to'           => 'nullable|date',
@@ -84,10 +80,8 @@ class ReportController extends Controller
         $from      = isset($validated['date_from']) ? Carbon::parse($validated['date_from']) : null;
         $to        = isset($validated['date_to'])   ? Carbon::parse($validated['date_to'])   : null;
 
-        $employees = isset($validated['employee_user_id'])
-            ? collect([User::findOrFail($validated['employee_user_id'])])
-            : User::role(['Employee', 'Manager'])->get();
-
+        // Send report for all employees
+        $employees = User::role(['Employee', 'Manager'])->get();
         $sent = 0;
         foreach ($employees as $employee) {
             if ($reporter->sendReport($recipient, $employee, $type, $from, $to)) $sent++;

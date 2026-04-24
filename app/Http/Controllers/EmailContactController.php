@@ -128,29 +128,92 @@ class EmailContactController extends Controller
     public function sendReport(Request $request, ReportService $reporter)
     {
         $validated = $request->validate([
-            'contact_id'  => 'required|exists:email_contacts,id',
-            'employee_id' => 'required|exists:users,id',
-            'report_type' => 'required|in:daily,weekly,monthly',
-            'date_from'   => 'nullable|date',
-            'date_to'     => 'nullable|date',
+            'contact_id'    => 'required|exists:email_contacts,id',
+            'report_type'   => 'required|in:daily,weekly,monthly',
+            'report_format' => 'nullable|in:email,pdf,excel',
+            'date_from'     => 'nullable|date',
+            'date_to'       => 'nullable|date',
         ]);
 
-        $contact  = EmailContact::findOrFail($validated['contact_id']);
-        $employee = \App\Models\User::findOrFail($validated['employee_id']);
-        $type     = $validated['report_type'];
-        $from     = isset($validated['date_from']) ? Carbon::parse($validated['date_from']) : null;
-        $to       = isset($validated['date_to'])   ? Carbon::parse($validated['date_to'])   : null;
+        $contact = EmailContact::findOrFail($validated['contact_id']);
+        $format  = $validated['report_format'] ?? 'email';
+        $type    = $validated['report_type'];
+        $from    = isset($validated['date_from']) ? Carbon::parse($validated['date_from']) : now()->startOfMonth();
+        $to      = isset($validated['date_to'])   ? Carbon::parse($validated['date_to'])   : now();
+
+        // Use the logged-in user as the "employee" (report is about auth user's logs)
+        $employee = auth()->user();
 
         // Build a pseudo-user for the contact recipient
-        $recipientPseudo        = new \App\Models\User();
-        $recipientPseudo->name  = $contact->name;
-        $recipientPseudo->email = $contact->email;
+        $recipient        = new \App\Models\User();
+        $recipient->name  = $contact->name;
+        $recipient->email = $contact->email;
 
-        $ok = $reporter->sendReport($recipientPseudo, $employee, $type, $from, $to);
+        $appName = config('app.name', 'Performia');
+        $subject = ucfirst($type) . " Report — {$from->format('d M')} to {$to->format('d M Y')} | {$appName}";
+
+        try {
+            if ($format === 'email') {
+                // Plain HTML email
+                $ok = $reporter->sendReport($recipient, $employee, $type, $from, $to);
+            } elseif ($format === 'pdf') {
+                // Generate PDF and attach
+                $logs = WorkLog::with(['subKra.kra', 'application', 'module', 'priority', 'status'])
+                    ->where('user_id', $employee->id)
+                    ->whereBetween('log_date', [$from->toDateString(), $to->toDateString()])
+                    ->latest('log_date')->get();
+
+                $pdf  = \Barryvdh\DomPDF\Facade\Pdf::loadView('exports.analytics-pdf', [
+                    'workLogs'   => $logs,
+                    'dateFrom'   => $from,
+                    'dateTo'     => $to,
+                    'user'       => $employee,
+                    'reportType' => $type,
+                    'date'       => now()->format('d M Y, H:i'),
+                ]);
+                $pdfContent = $pdf->output();
+
+                Mail::send([], [], function (Message $mail) use ($contact, $subject, $pdfContent, $appName, $from, $to, $type) {
+                    $mail->to($contact->email, $contact->name)
+                         ->subject($subject)
+                         ->html("<p>Hi {$contact->name},</p><p>Please find the attached {$type} report for {$from->format('d M')} – {$to->format('d M Y')}.</p><p>Regards,<br>{$appName}</p>")
+                         ->attachData($pdfContent, "report_{$type}_{$from->format('Y-m-d')}.pdf", ['mime' => 'application/pdf']);
+                });
+                $ok = true;
+            } elseif ($format === 'excel') {
+                // Generate Excel and attach
+                $logs2    = WorkLog::with(['subKra.kra', 'application', 'module', 'priority', 'status'])
+                    ->where('user_id', $employee->id)
+                    ->whereBetween('log_date', [$from->toDateString(), $to->toDateString()])
+                    ->latest('log_date')->get();
+
+                $export   = new \App\Exports\WorkLogsExport($logs2);
+                $fileName = "report_{$type}_{$from->format('Y-m-d')}.xlsx";
+                $tmpKey   = 'tmp_' . $fileName;
+
+                \Maatwebsite\Excel\Facades\Excel::store($export, $tmpKey, 'local');
+                $tmpPath  = storage_path('app' . DIRECTORY_SEPARATOR . 'private' . DIRECTORY_SEPARATOR . $tmpKey);
+
+                Mail::send([], [], function (Message $mail) use ($contact, $subject, $tmpPath, $fileName, $appName, $from, $to, $type) {
+                    $mail->to($contact->email, $contact->name)
+                         ->subject($subject)
+                         ->html("<p>Hi {$contact->name},</p><p>Please find the attached {$type} report for {$from->format('d M')} – {$to->format('d M Y')}.</p><p>Regards,<br>{$appName}</p>")
+                         ->attach($tmpPath, ['as' => $fileName, 'mime' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']);
+                });
+
+                if (file_exists($tmpPath)) @unlink($tmpPath);
+                $ok = true;
+            } else {
+                $ok = false;
+            }
+        } catch (\Throwable $e) {
+            \Log::error('sendReport failed: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Failed: ' . $e->getMessage()], 500);
+        }
 
         return response()->json([
             'success' => $ok,
-            'message' => $ok ? "Report sent to {$contact->email}." : 'Failed to send report.',
+            'message' => $ok ? "Report sent to {$contact->email} as " . strtoupper($format) . "." : 'Failed to send report.',
         ]);
     }
 }

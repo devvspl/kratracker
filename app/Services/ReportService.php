@@ -203,8 +203,7 @@ class ReportService
   <div style='padding:16px 28px;border-top:1px solid #f1f5f9;'>
     <p style='margin:0;font-size:13px;color:#475569;line-height:1.7;'>
       Best regards,<br>
-      <strong style='color:#1e293b;'>{$appName} System</strong><br>
-      <span style='font-size:11px;color:#94a3b8;'>This is an automated {$typeLabel} report. Please do not reply to this email.</span>
+      <strong style='color:#1e293b;'>{$appName}</strong>
     </p>
   </div>
 

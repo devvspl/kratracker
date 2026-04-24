@@ -22,7 +22,7 @@ class SendReports extends Command
 
         $configs = ReportConfig::where('report_type', $type)
             ->where('is_active', true)
-            ->with(['recipient', 'employee'])
+            ->with('recipient')
             ->get();
 
         $sent = 0;
@@ -31,10 +31,8 @@ class SendReports extends Command
             $recipient = $config->recipient;
             if (!$recipient) continue;
 
-            // If employee_user_id is null → send for ALL employees
-            $employees = $config->employee_user_id
-                ? collect([$config->employee])
-                : User::role(['Employee', 'Manager'])->get();
+            // Send for all employees
+            $employees = User::role(['Employee', 'Manager'])->get();
 
             foreach ($employees as $employee) {
                 if (!$employee) continue;

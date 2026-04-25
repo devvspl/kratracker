@@ -11,7 +11,7 @@ class WorkLog extends Model
         'log_date', 'priority_id', 'status_id', 'achievement_value',
         'target_value_snapshot', 'score_calculated', 'logic_applied',
         'start_time', 'end_time', 'total_duration', 'actual_duration', 'duration_difference',
-        'test_status', 'testing_details', 'remark', 'attachments',
+        'test_status', 'testing_details', 'remark', 'attachments', 'is_cloned', 'cloned_from_id',
     ];
 
     protected $casts = [
@@ -23,6 +23,7 @@ class WorkLog extends Model
         'total_duration'       => 'decimal:2',
         'actual_duration'      => 'decimal:2',
         'attachments'          => 'array',
+        'is_cloned'            => 'boolean',
     ];
 
     public function user()

@@ -54,6 +54,10 @@
     function workLogPage() {
         return {
             showModal: false, showDelete: false, showFeedback: false,
+            showCloneConfirm: false, showForward: false,
+            cloneId: null, forwardId: null,
+            forwardForm: { forward_date: '', reason_id: '', reason_custom: '' },
+            forwardReasons: [],
             modalMode: 'create', loading: false, deleteId: null,
             feedbackLogId: null, feedbacks: [],
             feedbackForm: { feedback_type: 'self', comment: '', rating: 5 },
@@ -78,7 +82,9 @@
                 status_id:      '{{ request("status_id") }}',
                 test_status:    '{{ request("test_status") }}',
                 application_id: '{{ request("application_id") }}',
-                module_id:      '{{ request("module_id") }}'
+                module_id:      '{{ request("module_id") }}',
+                has_attachment: '{{ request("has_attachment") }}',
+                has_link:       '{{ request("has_link") }}'
             },
             get activeFilterCount() {
                 let c = 0;
@@ -87,6 +93,8 @@
                 if (this.filters.test_status)    c++;
                 if (this.filters.application_id) c++;
                 if (this.filters.module_id)      c++;
+                if (this.filters.has_attachment === '1') c++;
+                if (this.filters.has_link === '1')       c++;
                 return c;
             },
             csrf() { return document.querySelector('meta[name=csrf-token]').content; },
@@ -267,7 +275,12 @@
 
             applyFilters() {
                 const params = new URLSearchParams();
-                Object.keys(this.filters).forEach(k => { if (this.filters[k]) params.append(k, this.filters[k]); });
+                Object.keys(this.filters).forEach(k => {
+                    const v = this.filters[k];
+                    if (v !== null && v !== '' && v !== false) {
+                        params.append(k, v === true ? '1' : v);
+                    }
+                });
                 window.location.href = '{{ route("work-logs.index") }}?' + params.toString();
             },
 
@@ -295,6 +308,69 @@
                     this.formData.module_id = '';
                     ts.setValue('', true);
                 } catch(e) {}
+            },
+
+            async cloneLog() {
+                this.loading = true;
+                try {
+                    const res  = await fetch('/work-logs/' + this.cloneId + '/clone', { method:'POST', headers:{'Accept':'application/json','X-CSRF-TOKEN':this.csrf()} });
+                    const data = await res.json();
+                    if (data.success) { window.showToast(data.message,'success'); this.showCloneConfirm=false; setTimeout(()=>location.reload(),800); }
+                    else window.showToast(data.message||'Error','error');
+                } catch(e) { window.showToast('Network error','error'); }
+                finally { this.loading = false; }
+            },
+
+            async openForward(id) {
+                this.forwardId = id;
+                // Default to tomorrow
+                const tomorrow = new Date();
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                const yyyy = tomorrow.getFullYear();
+                const mm   = String(tomorrow.getMonth() + 1).padStart(2, '0');
+                const dd   = String(tomorrow.getDate()).padStart(2, '0');
+                this.forwardForm = { forward_date: `${yyyy}-${mm}-${dd}`, reason_id: '', reason_custom: '' };
+                if (!this.forwardReasons.length) {
+                    try {
+                        const res  = await fetch('/api/forward-reasons');
+                        const data = await res.json();
+                        this.forwardReasons = data;
+                    } catch(e) {}
+                }
+                this.showForward = true;
+                setTimeout(() => {
+                    const el = document.getElementById('forward-reason-select');
+                    if (el && !el._tomSelect) {
+                        const ts = new TomSelect(el, {
+                            create: true,
+                            createOnBlur: true,
+                            placeholder: 'Select or type reason...',
+                            render: { option_create: (d, e) => '<div class="create">Add: <strong>' + e(d.input) + '</strong></div>' }
+                        });
+                        ts.on('change', v => {
+                            const existing = this.forwardReasons.find(r => String(r.id) === String(v));
+                            if (existing) { this.forwardForm.reason_id = v; this.forwardForm.reason_custom = ''; }
+                            else { this.forwardForm.reason_id = ''; this.forwardForm.reason_custom = v; }
+                        });
+                    }
+                }, 150);
+            },
+
+            async submitForward() {
+                const reason = this.forwardForm.reason_custom ||
+                    (this.forwardReasons.find(r => String(r.id) === String(this.forwardForm.reason_id))?.reason || '');
+                if (!this.forwardForm.forward_date) return window.showToast('Please select a forward date','error');
+                if (!reason) return window.showToast('Please select or enter a reason','error');
+                this.loading = true;
+                try {
+                    const res  = await fetch('/work-logs/' + this.forwardId + '/forward', { method:'POST',
+                        headers:{'Content-Type':'application/json','Accept':'application/json','X-CSRF-TOKEN':this.csrf()},
+                        body: JSON.stringify({ forward_date: this.forwardForm.forward_date, reason }) });
+                    const data = await res.json();
+                    if (data.success) { window.showToast(data.message,'success'); this.showForward=false; setTimeout(()=>location.reload(),800); }
+                    else window.showToast(data.message||'Error','error');
+                } catch(e) { window.showToast('Network error','error'); }
+                finally { this.loading = false; }
             },
 
             async deleteExistingAttachment(id) {
@@ -529,6 +605,19 @@
                     <a href="{{ route('work-logs.index') }}"
                         class="flex-1 text-center px-3 py-2 text-sm bg-slate-100 text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-200 transition-colors">Clear</a>
                 </div>
+                {{-- Has Attachment / Has Link --}}
+                <div class="flex items-end gap-4 lg:col-span-3">
+                    <label class="flex items-center gap-2 cursor-pointer text-xs text-slate-600 font-medium">
+                        <input type="checkbox" x-model="filters.has_attachment" true-value="1" false-value=""
+                            class="w-4 h-4 text-teal-600 rounded border-slate-300">
+                        Has Attachment
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer text-xs text-slate-600 font-medium">
+                        <input type="checkbox" x-model="filters.has_link" true-value="1" false-value=""
+                            class="w-4 h-4 text-teal-600 rounded border-slate-300">
+                        Has Link
+                    </label>
+                </div>
             </div>
         </div>
 
@@ -549,8 +638,15 @@
                 </thead>
                 <tbody class="divide-y divide-slate-100">
                     @forelse($workLogs as $log)
-                        <tr class="hover:bg-slate-50">
-                            <td class="px-4 py-3 text-slate-600 whitespace-nowrap">{{ $log->log_date->format('d M Y') }}
+                        @php
+                            $isCompleted = str_contains(optional($log->status)->name ?? '', 'Completed');
+                        @endphp
+                        <tr class="{{ $log->is_cloned ? 'bg-amber-50/60 border-l-2 border-amber-300' : 'hover:bg-slate-50' }}">
+                            <td class="px-4 py-3 text-slate-600 whitespace-nowrap">
+                                {{ $log->log_date->format('d M Y') }}
+                                @if($log->is_cloned)
+                                    <span class="ml-1 px-1.5 py-0.5 text-[10px] font-semibold bg-amber-100 text-amber-700 rounded">Clone</span>
+                                @endif
                             </td>
                             <td class="px-4 py-3">
                                 <p class="font-medium text-slate-800">{{ $log->title }}</p>
@@ -583,6 +679,20 @@
                                                 d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                         </svg>
                                     </button>
+                                    <button @click="cloneId={{ $log->id }}; showCloneConfirm=true" title="Clone"
+                                        class="p-1 text-slate-400 hover:text-teal-600 rounded">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                                        </svg>
+                                    </button>
+                                    @if(!$isCompleted)
+                                    <button @click="openForward({{ $log->id }})" title="Forward to another date"
+                                        class="p-1 text-slate-400 hover:text-amber-600 rounded">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 9l3 3m0 0l-3 3m3-3H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                        </svg>
+                                    </button>
+                                    @endif
                                     <button @click="confirmDelete({{ $log->id }})" title="Delete"
                                         class="p-1 text-slate-400 hover:text-red-600 rounded">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -671,7 +781,12 @@
                         <button type="button" @click="activeTab = 'attachments'"
                             :class="activeTab === 'attachments' ? 'border-teal-500 text-teal-700' :
                                 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'"
-                            class="pb-2 text-sm font-medium border-b-2 transition-colors">4. Attachments & Links</button>
+                            class="pb-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-1">
+                            4. Attachments & Links
+                            <span x-show="(formData.attachments?.length || 0) + (formData.links?.length || 0) + uploadedFiles.length > 0"
+                                x-text="(formData.attachments?.length || 0) + (formData.links?.length || 0) + uploadedFiles.length"
+                                class="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-teal-100 text-teal-700"></span>
+                        </button>
                         <button type="button" @click="activeTab = 'feedback'"
                             :class="activeTab === 'feedback' ? 'border-teal-500 text-teal-700' :
                                 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'"
@@ -1228,6 +1343,71 @@
             </div>
         </div>
         
+        {{-- Clone Confirm Modal --}}
+        <div x-show="showCloneConfirm" class="fixed inset-0 z-50 overflow-y-auto" style="display:none;">
+            <div class="flex items-center justify-center min-h-screen px-4">
+                <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm" @click="showCloneConfirm=false"></div>
+                <div class="relative bg-white rounded-xl shadow-2xl max-w-sm w-full p-6 text-center">
+                    <div class="w-12 h-12 rounded-full bg-teal-100 flex items-center justify-center mx-auto mb-4">
+                        <svg class="w-6 h-6 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                        </svg>
+                    </div>
+                    <h3 class="text-base font-bold text-slate-800 mb-2">Clone this Task?</h3>
+                    <p class="text-sm text-slate-500 mb-6">A copy will be created with today's date. You can edit it afterwards.</p>
+                    <div class="flex gap-3">
+                        <button @click="showCloneConfirm=false" class="flex-1 px-4 py-2 bg-white border border-slate-300 text-slate-700 font-medium rounded-lg hover:bg-slate-50">Cancel</button>
+                        <button @click="cloneLog()" :disabled="loading"
+                            class="flex-1 px-4 py-2 bg-teal-600 text-white font-medium rounded-lg hover:bg-teal-700 disabled:opacity-50">
+                            <span x-show="!loading">Clone</span>
+                            <span x-show="loading">Cloning...</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{-- Forward Modal --}}
+        <div x-show="showForward" class="fixed inset-0 z-50 overflow-y-auto" style="display:none;">
+            <div class="flex items-center justify-center min-h-screen px-4">
+                <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm" @click="showForward=false"></div>
+                <div class="relative bg-white rounded-xl shadow-2xl max-w-sm w-full p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-base font-bold text-slate-800">Forward Task</h3>
+                        <button @click="showForward=false" class="text-slate-400 hover:text-red-500">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        </button>
+                    </div>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-700 mb-1">Forward to Date <span class="text-red-500">*</span></label>
+                            <input type="text" x-init="flatpickr($el, { dateFormat: 'Y-m-d', minDate: 'tomorrow', defaultDate: 'tomorrow' })"
+                                x-model="forwardForm.forward_date"
+                                class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none cursor-pointer bg-white"
+                                placeholder="Select date">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-700 mb-1">Reason <span class="text-red-500">*</span></label>
+                            <select id="forward-reason-select">
+                                <option value="">Select or type reason...</option>
+                                <template x-for="r in forwardReasons" :key="r.id">
+                                    <option :value="r.id" x-text="r.reason"></option>
+                                </template>
+                            </select>
+                        </div>
+                        <div class="flex gap-3 pt-2">
+                            <button @click="showForward=false" class="flex-1 px-4 py-2 text-sm border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50">Cancel</button>
+                            <button @click="submitForward()" :disabled="loading"
+                                class="flex-1 px-4 py-2 text-sm bg-amber-500 text-white rounded-lg hover:bg-amber-600 disabled:opacity-50 flex items-center justify-center gap-2">
+                                <svg x-show="loading" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+                                <span x-text="loading ? 'Forwarding...' : 'Forward Task'"></span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         {{-- Feedback Modal --}}
         <div x-show="showFeedback" class="fixed inset-0 z-50 overflow-y-auto" style="display: none;">
             <div class="flex items-center justify-center min-h-screen px-4 text-center sm:p-0">

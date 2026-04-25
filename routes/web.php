@@ -58,6 +58,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/work-logs/{workLog}/show', [WorkLogController::class, 'show'])->name('work-logs.show');
     Route::match(['PUT','POST'], '/work-logs/{workLog}/update', [WorkLogController::class, 'update'])->name('work-logs.update');
     Route::delete('/work-logs/{workLog}/delete', [WorkLogController::class, 'destroy'])->name('work-logs.destroy');
+    Route::post('/work-logs/{workLog}/clone', [WorkLogController::class, 'clone'])->name('work-logs.clone');
+    Route::post('/work-logs/{workLog}/forward', [WorkLogController::class, 'forward'])->name('work-logs.forward');
+    Route::get('/api/forward-reasons', [WorkLogController::class, 'forwardReasons'])->name('work-logs.forward-reasons');
     Route::post('/work-logs/{workLog}/feedback', [WorkLogController::class, 'storeFeedback'])->name('work-logs.feedback');
     Route::get('/work-logs/attachments/{attachment}/download', [WorkLogController::class, 'downloadAttachment'])->name('work-logs.download-attachment');
     Route::delete('/work-logs/attachments/{attachment}/delete', [WorkLogController::class, 'deleteAttachment'])->name('work-logs.delete-attachment');

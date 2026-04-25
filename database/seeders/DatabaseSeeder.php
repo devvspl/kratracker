@@ -148,5 +148,8 @@ class DatabaseSeeder extends Seeder
                 'is_active'      => true,
             ]);
         }
+
+        // ── Forward Reasons ───────────────────────────────────────────────────
+        $this->call(ForwardReasonSeeder::class);
     }
 }

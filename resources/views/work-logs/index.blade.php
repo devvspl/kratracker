@@ -321,15 +321,16 @@
                 finally { this.loading = false; }
             },
 
-            async openForward(id) {
+            async openForward(id, logDate) {
                 this.forwardId = id;
-                // Default to tomorrow
-                const tomorrow = new Date();
-                tomorrow.setDate(tomorrow.getDate() + 1);
-                const yyyy = tomorrow.getFullYear();
-                const mm   = String(tomorrow.getMonth() + 1).padStart(2, '0');
-                const dd   = String(tomorrow.getDate()).padStart(2, '0');
-                this.forwardForm = { forward_date: `${yyyy}-${mm}-${dd}`, reason_id: '', reason_custom: '' };
+                // Default to log_date + 1
+                const base = logDate ? new Date(logDate) : new Date();
+                base.setDate(base.getDate() + 1);
+                const yyyy = base.getFullYear();
+                const mm   = String(base.getMonth() + 1).padStart(2, '0');
+                const dd   = String(base.getDate()).padStart(2, '0');
+                const defaultDate = `${yyyy}-${mm}-${dd}`;
+                this.forwardForm = { forward_date: defaultDate, reason_id: '', reason_custom: '' };
                 if (!this.forwardReasons.length) {
                     try {
                         const res  = await fetch('/api/forward-reasons');
@@ -686,7 +687,7 @@
                                         </svg>
                                     </button>
                                     @if(!$isCompleted)
-                                    <button @click="openForward({{ $log->id }})" title="Forward to another date"
+                                    <button @click="openForward({{ $log->id }}, '{{ $log->log_date->toDateString() }}')" title="Forward to another date"
                                         class="p-1 text-slate-400 hover:text-amber-600 rounded">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 9l3 3m0 0l-3 3m3-3H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z"/>
@@ -1381,7 +1382,8 @@
                     <div class="space-y-4">
                         <div>
                             <label class="block text-xs font-medium text-slate-700 mb-1">Forward to Date <span class="text-red-500">*</span></label>
-                            <input type="text" x-init="flatpickr($el, { dateFormat: 'Y-m-d', minDate: 'tomorrow', defaultDate: 'tomorrow' })"
+                            <input type="text" 
+                                x-init="flatpickr($el, { dateFormat: 'Y-m-d', minDate: new Date(new Date().setDate(new Date().getDate())), defaultDate: forwardForm.forward_date })"
                                 x-model="forwardForm.forward_date"
                                 class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none cursor-pointer bg-white"
                                 placeholder="Select date">

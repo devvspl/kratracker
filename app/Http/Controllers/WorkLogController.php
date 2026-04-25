@@ -540,8 +540,8 @@ class WorkLogController extends Controller
         }
 
         $validated = $request->validate([
-            'forward_date' => 'required|date|after_or_equal:' . now()->addDay()->toDateString(),
-            'reason' => 'required|string|max:255',
+            'forward_date' => 'required|date|after:' . $workLog->log_date->toDateString(),
+            'reason'       => 'required|string|max:255',
         ]);
 
         $workLog->update([
